@@ -20,14 +20,9 @@ format:
     toc-location: left
     toc-depth: 3
     embed-resources: true
-    code-fold: true
+    code-fold: false
     code-tools: true
     code-link: true
-  pdf:
-    echo: false
-    toc: true
-    toc-depth: 2
-    fontsize: 10pt
 csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
 bibliography: references.bib
 ---
@@ -40,36 +35,301 @@ bibliography: references.bib
 # Output: --
 #
 # Contents: (1) Read Data
-#           (2) EFA Social Support
-#           (3) Compute Scale Scores
-#           (4) Attribution Theory
-#           (5) Self Efficacy
+#           (2) Measures
+#           (3) Results
 
 ####  ------------- Load Packages ------------- ####
-library(here) # find files
-library(psych)
-evaluate missingness
-library(tidyverse)
-library(lavaan)
+library(here)           # find files
+library(tidyverse)      # for data management
+library(psych)          # for scale construction
+library(tidySEM)        # for SEM
+library(lavaan) 
 
 ```
 
 ## Data Analysis
 
-### Read Data
-```{r}
-data <- read.csv(here("00_data/b_sab_mzp2_2024_R_data_file.csv"))
-```
-
-### EFA Social Support
-
-The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each question according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support.  
-
-
+### (1) Read Data
 
 ```{r}
-data <- read.csv(here("00_data/b_sab_mzp2_2024_R_data_file.csv"))
+data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 ```
+
+### (2) Measures
+
+#### (2a) Exploratory Factor Analysis: Social Support Scale
+The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each question according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support best.  
+
+##### Dataevaluation
+
+*Evaluation of missingness:*
+
+```{r}
+data_efa <- data %>%
+  dplyr::select(sozunt_ins5:sozunt_ins2)
+
+desc <- tidySEM::descriptives(data_efa)
+desc <- desc[, c("name", "type", "n", "missing", "unique", "mode")]
+desc
+```
+
+Mean substitution of missing data:
+
+```{r}
+mean_substitution <- function(df){
+  n_cols <- ncol(df)
+  
+  for(i in 1:n_cols){
+  # get the current column
+  column_i <- df[, i]
+  
+  # get the mean of the current column
+  mean_i <- mean(column_i, na.rm = TRUE)
+  
+  # get the NAs in the current column
+  NAs_i <- which(is.na(column_i))
+  
+  # report the number of NAs
+  N_NAs <- length(NAs_i)
+  
+  # replace the NAs in the current column
+  column_i[NAs_i] <- mean_i
+  
+  # replace the original column with the
+  ## updated columns
+  df[, i] <- column_i
+  
+  }
+  
+  return(df)
+}
+
+data_efa <- mean_substitution(data_efa)
+```
+
+*Kaiser–Meyer–Olkin (KMO) Test:*
+
+- 0.00 - 0.49: Unacceptable
+- 0.50 - 0.59: Miserable
+- 0.60 - 0.69: Mediocre
+- 0.70 - 0.79: Middling
+- 0.80 - 0.89: Meritorious
+- 0.90 - 1.00: Marvelous
+
+```{r}
+psych::KMO(data_efa)
+```
+
+Deletion of those items, who failed the KMO test (< 0.50):
+
+```{r}
+data_efa <- data_efa %>%
+  dplyr::select(-sozunt_ins4)
+```
+
+*Bartlett Test of Sphericity:*
+
+```{r}
+psych::cortest.bartlett(data_efa)$p.value
+```
+
+##### Exploratory Factor Analysis
+
+*Step 1: How many factors to extract?*
+
+```{r}
+psych::scree(data_efa, pc = FALSE)       # plot scree plot 
+psych::fa.parallel(data_efa, fa = "both")  # check against parallel analysis, missing data is treated pairwise
+```
+
+The scree plot suggests two factors. Parallel analysis is revealing up to five factors.
+
+*Step 2: Extract factors*
+
+```{r}
+fit <- stats::factanal(data_efa, 3, rotation = "varimax")
+print(fit, digits = 2, cutoff = 0.4, sort = TRUE)
+```
+
+
+*Step 3: Plot factors*
+```{r}
+loadings <- fit$loadings
+psych::fa.diagram(loadings)
+```
+According to this
+
+- Informational support ("Hinweise und Ratschläge") is best represented through the items `sozunt_inf3`, `sozunt_inf4` and  `sozunt_inf5`  
+
+- Instrumental support ("Güter und Materialien") is best represented through the items `sozunt_ins5` and `sozunt_ins1`
+
+- Emotional support ("Trost und Nähe") is best represented through the items `sozunt_emo2`, `sozunt_emo3` and  `sozunt_emo4`
+
+*Step 4: Evaluate Reliability*
+```{r}
+inf_sup_alpha <- data %>% 
+  dplyr::select(sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
+  psych::alpha(title = "sozunt_inf")
+
+ins_sup_alpha <- data %>% 
+  dplyr::select(sozunt_ins5, sozunt_ins1) %>%
+  psych::alpha(title = "sozunt_ins")
+
+emo_sup_alpha <- data %>%  
+  dplyr::select(sozunt_emo2, sozunt_emo3, sozunt_emo4) %>%
+  psych::alpha(title = "sozunt_emo")
+
+inf_sup_alpha$total
+ins_sup_alpha$total
+emo_sup_alpha$total
+```
+
+Notiz:
+Für "Instrumental support" ist alpha .56. - Richter et al. schreiben "Auf die Erfassung der instrumentellen Unterstützung von Seiten des Mentors wurde verzichtet, da die einschlägige Literatur zum Mentoring diese Form der Unterstützung bisher kaum thematisiert (diese Einschränkung wird im Diskussionsteil angesprochen)."
+
+Eine Konsequenz könnte sein, die Skala nicht weiter zu berücksichtigen. Womöglich spielt diese Art der Unterstützung tatsächlich keine Rolle.
+
+#### (2b) Compute Scale Scores
+
+```{r}
+# Factor vignette, dummy for each vignette
+data <- data %>%
+  dplyr::mutate(vig = case_when((random == 1) ~ 1,
+                                (random == 2) ~ 2,
+                                (random == 3) ~ 3,
+                                TRUE ~ as.numeric(NA)),
+                vig1 = ifelse(vig == 1, 1, 0),
+                vig2 = ifelse(vig == 2, 1, 0),
+                vig3 = ifelse(vig == 3, 1, 0))
+
+
+data$vig <- as.factor(data$vig)
+
+### Attribution 
+
+data$int <- data$int_1 # internality
+data$sta <- data$sta_1 # stability
+data$glo <- data$glo_1 # globality
+
+data$con <- data$kon_1 # controllability
+
+
+# Attribution style: Int, Sta, Glo
+data <- data %>% 
+  dplyr::mutate(isg = rowMeans(subset(data, select = c(int, sta, glo)), na.rm = TRUE))
+
+isg_alpha <- data %>% 
+  dplyr::select(int, sta, glo) %>%
+  psych::alpha(title = "isg_alpha")
+
+### Affect 
+
+# Negative affect, positive affect
+data <- data %>% 
+  dplyr::mutate(pos_aff = rowMeans(subset(data, select = c(affekt_1, affekt_3, 
+                                                           affekt_4, affekt_6, 
+                                                           affekt_10, affekt_11,
+                                                           affekt_12, affekt_15)),
+                                   na.rm = TRUE),
+                neg_aff = rowMeans(subset(data, select = c(affekt_2, affekt_5, 
+                                                           affekt_7, affekt_8, 
+                                                           affekt_13, affekt_14,
+                                                           affekt_16)),
+                                   na.rm = TRUE))
+
+data$ang <- data$affekt_5   # Anger
+data$gui <- data$affekt_7   # Guilt
+data$sha <- data$affekt_14  # Shame
+
+### Social Support
+
+## Informational support: "Hinweise und Ratschläge"
+data <- data %>% 
+  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf3, 
+                                                           sozunt_inf4, 
+                                                           sozunt_inf5)),
+                                   na.rm = TRUE),
+                
+## Instrumental support: "Güter und Materialien"                
+                ins_sup = rowMeans(subset(data, select = c(sozunt_ins5, 
+                                                           sozunt_ins1)),
+                                 na.rm = TRUE),
+
+## Emotional support: "Trost und Nähe"
+                emo_sup = rowMeans(subset(data, select = c(sozunt_emo2, 
+                                                           sozunt_emo3, 
+                                                           sozunt_emo4)),
+                                   na.rm = TRUE))
+
+### Self Efficacy
+
+data <- data %>% 
+  dplyr::mutate(seff = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
+                                                        seffsab_20, seffsab_14, 
+                                                        seffsab_6, seffsab_28,
+                                                        seffsab_48, seffsab_39,
+                                                        seffsab_46, seffsab_47,
+                                                        seffsab_4, seffsab_29,
+                                                        seffsab_44, seffsab_27,
+                                                        seffsab_42, seffsab_9)),
+                                na.rm = TRUE))
+
+# Self Efficacy, Factor 1: Pedagogical Practices
+data <- data %>% 
+  dplyr::mutate(seff_f1 = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
+                                                        seffsab_20, seffsab_14, 
+                                                        seffsab_6, seffsab_28,
+                                                        seffsab_48, seffsab_39,
+                                                        seffsab_46, seffsab_47,
+                                                        seffsab_4)),
+                                na.rm = TRUE))
+
+# Self Efficacy, Factor 2: Relationships
+data <- data %>% 
+  dplyr::mutate(seff_f2 = rowMeans(subset(data, select = c(seffsab_29,seffsab_44, 
+                                                        seffsab_27,seffsab_42, 
+                                                        seffsab_9)),
+                                na.rm = TRUE))
+```
+
+#### (2c) Glossary
+
+*Attributions* 
+adapted from [@zurattributionsstil]
+
+- `int`: Internality
+- `sta`: Stability
+- `glo`: Globality
+- `con`: Controllability
+- `isg`: Attribution style: internal, stable and global
+
+*Affect* 
+after [@breyer2016deutsche]
+
+- `pos_aff`: Positive Affect
+- `neg_aff`: Negative Affect
+- `ang`: Anger
+- `gui`: Guilt
+- `sha`: Shame
+
+*Social Support*
+adapted from [@richter2011soziale]
+
+- `inf_sup`: Informational support
+- `ins_sup`: Instrumental support
+- `emo_sup`: Emotional Support
+
+*Self Efficacy*
+adapted from [@tickell2024developing]
+
+- `seff_f1`: Pedagogical Practices
+- `seff_f2`: Relationships
+
+### (3) Results
+
+#### (3a) Attributional Theory
+
+
 
 ## References
 
