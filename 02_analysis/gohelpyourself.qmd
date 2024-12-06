@@ -1,0 +1,77 @@
+---
+title: "Go Help Yourself:"
+subtitle: "Teacher Educator Attributions of Failure and the Witholding of Social Support" 
+title-block-banner: true
+author: DS
+date: today
+date-format: "DD MMMM YYYY"
+editor: source
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+format: 
+  html:
+    echo: true
+    theme: flatly
+    fontsize: 1.1em
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    embed-resources: true
+    code-fold: true
+    code-tools: true
+    code-link: true
+  pdf:
+    echo: false
+    toc: true
+    toc-depth: 2
+    fontsize: 10pt
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
+bibliography: references.bib
+---
+
+## Information
+
+```{r}
+# Input: b_sab_mzp2_2024_R_data_file.csv
+#
+# Output: --
+#
+# Contents: (1) Read Data
+#           (2) EFA Social Support
+#           (3) Compute Scale Scores
+#           (4) Attribution Theory
+#           (5) Self Efficacy
+
+####  ------------- Load Packages ------------- ####
+library(here) # find files
+library(psych)
+evaluate missingness
+library(tidyverse)
+library(lavaan)
+
+```
+
+## Data Analysis
+
+### Read Data
+```{r}
+data <- read.csv(here("00_data/b_sab_mzp2_2024_R_data_file.csv"))
+```
+
+### EFA Social Support
+
+The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each question according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support.  
+
+
+
+```{r}
+data <- read.csv(here("00_data/b_sab_mzp2_2024_R_data_file.csv"))
+```
+
+## References
+
+::: {#refs}
+:::
