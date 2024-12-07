@@ -347,6 +347,9 @@ model1 <- '# direct effect
 fit1 <- lavaan::sem(model1, data = data, missing = "fiml")
 
 summary(fit1)
+
+# CFI cut-off: .95; SRMR cut-off: .09
+fitMeasures(fit1, c("cfi","srmr"))
 ```
 #### (3b) Self Efficacy
 
@@ -427,6 +430,14 @@ tab3 <- data.frame(int = mean(data_vig3$int, na.rm = T),
 barplot(as.matrix(tab1), main = "Vignette 1")
 barplot(as.matrix(tab2), main = "Vignette 2")
 barplot(as.matrix(tab3), main = "Vignette 3")
+             
+tab1 <- table(data_vig1$check_1)
+tab2 <- table(data_vig2$check_1)
+tab3 <- table(data_vig3$check_1)
+
+barplot(tab1, main = "Vignette 1")
+barplot(tab2, main = "Vignette 2")
+barplot(tab3, main = "Vignette 3")
 ```
 
 ## Next Steps
