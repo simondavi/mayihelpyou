@@ -2,7 +2,7 @@
 title: "Go Help Yourself:"
 subtitle: "Teacher Educator Attributions of Failure and the Witholding of Social Support" 
 title-block-banner: true
-author: DS
+author: David Simon
 date: today
 date-format: "DD MMMM YYYY"
 editor: source
@@ -14,7 +14,8 @@ execute:
 format: 
   html:
     echo: true
-    theme: flatly
+    theme: zephyr
+    mainfont: "Goudy Bookletter 1911"
     fontsize: 1.1em
     toc: true
     toc-location: left
@@ -44,7 +45,6 @@ library(tidyverse)      # for data management
 library(psych)          # for scale construction
 library(tidySEM)        # for SEM
 library(lavaan) 
-
 ```
 
 ## Data Analysis
@@ -58,7 +58,7 @@ data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 ### (2) Measures
 
 #### (2a) Exploratory Factor Analysis: Social Support Scale
-The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each question according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support best.  
+The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each question according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support best.
 
 ##### Dataevaluation
 
@@ -147,8 +147,9 @@ The scree plot suggests two factors. Parallel analysis is revealing up to five f
 *Step 2: Extract factors*
 
 ```{r}
+set.seed(123)
 fit <- stats::factanal(data_efa, 3, rotation = "varimax")
-print(fit, digits = 2, cutoff = 0.4, sort = TRUE)
+print(fit, digits = 2, cutoff = 0.3, sort = TRUE)
 ```
 
 
@@ -157,22 +158,22 @@ print(fit, digits = 2, cutoff = 0.4, sort = TRUE)
 loadings <- fit$loadings
 psych::fa.diagram(loadings)
 ```
-According to this
+Considering factor loadings >= 0.4 [@stevens2002applied], and with the intended assignment in mind (if the items loaded on unintended factors, they were not taken into account)
 
-- Informational support ("Hinweise und Ratschläge") is best represented through the items `sozunt_inf3`, `sozunt_inf4` and  `sozunt_inf5`  
+- Informational support ("Hinweise und Ratschläge") is best represented through the items `sozunt_inf1`, `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and  `sozunt_inf5`,  
 
-- Instrumental support ("Güter und Materialien") is best represented through the items `sozunt_ins5` and `sozunt_ins1`
+- Instrumental support ("Güter und Materialien") is best represented through the items `sozunt_ins1` and `sozunt_ins5`,
 
-- Emotional support ("Trost und Nähe") is best represented through the items `sozunt_emo2`, `sozunt_emo3` and  `sozunt_emo4`
+- Emotional support ("Trost und Nähe") is best represented through the items `sozunt_emo2`, `sozunt_emo3` and  `sozunt_emo4`.
 
 *Step 4: Evaluate Reliability*
 ```{r}
 inf_sup_alpha <- data %>% 
-  dplyr::select(sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
+  dplyr::select(sozunt_inf1, sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
   psych::alpha(title = "sozunt_inf")
 
 ins_sup_alpha <- data %>% 
-  dplyr::select(sozunt_ins5, sozunt_ins1) %>%
+  dplyr::select(sozunt_ins1, sozunt_ins5) %>%
   psych::alpha(title = "sozunt_ins")
 
 emo_sup_alpha <- data %>%  
@@ -205,14 +206,13 @@ data <- data %>%
 
 data$vig <- as.factor(data$vig)
 
-### Attribution 
+## Attribution 
 
-data$int <- data$int_1 # internality
-data$sta <- data$sta_1 # stability
-data$glo <- data$glo_1 # globality
-
-data$con <- data$kon_1 # controllability
-
+data <- data %>%
+  dplyr::mutate(int = int_1,  # internality
+                sta = sta_1,  # stability 
+                glo = glo_1,  # globality
+                con = kon_1)  # controllability
 
 # Attribution style: Int, Sta, Glo
 data <- data %>% 
@@ -222,7 +222,8 @@ isg_alpha <- data %>%
   dplyr::select(int, sta, glo) %>%
   psych::alpha(title = "isg_alpha")
 
-### Affect 
+
+## Affect 
 
 # Negative affect, positive affect
 data <- data %>% 
@@ -235,33 +236,35 @@ data <- data %>%
                                                            affekt_7, affekt_8, 
                                                            affekt_13, affekt_14,
                                                            affekt_16)),
-                                   na.rm = TRUE))
+                                   na.rm = TRUE),
+                ang = affekt_5,   # Anger
+                gui = affekt_7,   # Guilt
+                sha = affekt_14)  # Shame
 
-data$ang <- data$affekt_5   # Anger
-data$gui <- data$affekt_7   # Guilt
-data$sha <- data$affekt_14  # Shame
 
-### Social Support
+## Social Support
 
-## Informational support: "Hinweise und Ratschläge"
+# Informational support: "Hinweise und Ratschläge"
 data <- data %>% 
-  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf3, 
+  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf1,
+                                                           sozunt_inf2,
+                                                           sozunt_inf3, 
                                                            sozunt_inf4, 
                                                            sozunt_inf5)),
                                    na.rm = TRUE),
                 
 ## Instrumental support: "Güter und Materialien"                
-                ins_sup = rowMeans(subset(data, select = c(sozunt_ins5, 
-                                                           sozunt_ins1)),
+                ins_sup = rowMeans(subset(data, select = c(sozunt_ins1, 
+                                                           sozunt_ins5)),
                                  na.rm = TRUE),
 
-## Emotional support: "Trost und Nähe"
+# Emotional support: "Trost und Nähe"
                 emo_sup = rowMeans(subset(data, select = c(sozunt_emo2, 
                                                            sozunt_emo3, 
                                                            sozunt_emo4)),
                                    na.rm = TRUE))
 
-### Self Efficacy
+## Self Efficacy
 
 data <- data %>% 
   dplyr::mutate(seff = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
@@ -272,24 +275,22 @@ data <- data %>%
                                                         seffsab_4, seffsab_29,
                                                         seffsab_44, seffsab_27,
                                                         seffsab_42, seffsab_9)),
-                                na.rm = TRUE))
+                                na.rm = TRUE),
 
-# Self Efficacy, Factor 1: Pedagogical Practices
-data <- data %>% 
-  dplyr::mutate(seff_f1 = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
-                                                        seffsab_20, seffsab_14, 
-                                                        seffsab_6, seffsab_28,
-                                                        seffsab_48, seffsab_39,
-                                                        seffsab_46, seffsab_47,
-                                                        seffsab_4)),
-                                na.rm = TRUE))
+# Self Efficacy, Factor 1: Pedagogical Practices                        
+                seff_f1 = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
+                                                           seffsab_20, seffsab_14, 
+                                                           seffsab_6, seffsab_28,
+                                                           seffsab_48, seffsab_39,
+                                                           seffsab_46, seffsab_47,
+                                                           seffsab_4)),
+                                   na.rm = TRUE),
 
 # Self Efficacy, Factor 2: Relationships
-data <- data %>% 
-  dplyr::mutate(seff_f2 = rowMeans(subset(data, select = c(seffsab_29,seffsab_44, 
-                                                        seffsab_27,seffsab_42, 
-                                                        seffsab_9)),
-                                na.rm = TRUE))
+                seff_f2 = rowMeans(subset(data, select = c(seffsab_29,seffsab_44,
+                                                           seffsab_27,seffsab_42, 
+                                                           seffsab_9)),
+                                   na.rm = TRUE))
 ```
 
 #### (2c) Glossary
@@ -328,10 +329,114 @@ adapted from [@tickell2024developing]
 ### (3) Results
 
 #### (3a) Attributional Theory
+According to 
 
+```{r}
+model1 <- '# direct effect
+           inf_sup ~ int
+           ins_sup ~ int
+           emo_sup ~ int
+           # mediators
+           ang ~ int
+           gui ~ int
+           sha ~ int
+           inf_sup ~ ang + gui + sha
+           ins_sup ~ ang + gui + sha
+           emo_sup ~ ang + gui + sha'
 
+fit1 <- lavaan::sem(model1, data = data, missing = "fiml")
+
+summary(fit1)
+```
+#### (3b) Self Efficacy
+
+```{r}
+model2 <- 'inf_sup ~ seff_f2 + seff_f1
+           ins_sup ~ seff_f2 + seff_f1
+           emo_sup ~ seff_f2 + seff_f1
+           # emotions
+           ang ~ seff_f2 + seff_f1
+           gui ~ seff_f2 + seff_f1
+           sha ~ seff_f2 + seff_f1'
+
+fit2 <- lavaan::sem(model2, data = data, missing = "fiml",
+                    fixed.x = FALSE)
+
+summary(fit2)
+```
+
+```{r}
+model3 <- '# direct effect
+           inf_sup ~ int + seff_f2 + seff_f1
+           ins_sup ~ int + seff_f2 + seff_f1
+           emo_sup ~ int + seff_f2 + seff_f1
+           # mediators
+           ang ~ int + seff_f2 + seff_f1
+           inf_sup ~ ang
+           ins_sup ~ ang
+           emo_sup ~ ang'
+
+fit3 <- lavaan::sem(model3, data = data, missing = "fiml")
+
+summary(fit3)
+```
+
+#### (3c) Descriptives Vignettes
+
+*Were the situations perceived as a failure?*
+
+- 1, 2, 3: Misserfolg
+- 4, 5, 6: Erfolg
+
+```{r}
+data_vig1 <- data %>% 
+  dplyr::filter(vig == 1) 
+
+data_vig2 <- data %>% 
+  dplyr::filter(vig == 2) 
+
+data_vig3 <- data %>% 
+  dplyr::filter(vig == 3) 
+
+tab1 <- table(data_vig1$check_1)
+tab2 <- table(data_vig2$check_1)
+tab3 <- table(data_vig3$check_1)
+
+barplot(tab1, main = "Vignette 1")
+barplot(tab2, main = "Vignette 2")
+barplot(tab3, main = "Vignette 3")
+```
+
+*Were the situations equally attributed?*
+```{r}
+tab1 <- data.frame(int = mean(data_vig1$int, na.rm = T),
+                   sta = mean(data_vig1$sta, na.rm = T),
+                   glo = mean(data_vig1$glo, na.rm = T),
+                   con = mean(data_vig1$con, na.rm = T))
+
+tab2 <- data.frame(int = mean(data_vig2$int, na.rm = T),
+                   sta = mean(data_vig2$sta, na.rm = T),
+                   glo = mean(data_vig2$glo, na.rm = T),
+                   con = mean(data_vig2$con, na.rm = T))
+
+tab3 <- data.frame(int = mean(data_vig3$int, na.rm = T),
+                   sta = mean(data_vig3$sta, na.rm = T),
+                   glo = mean(data_vig3$glo, na.rm = T),
+                   con = mean(data_vig3$con, na.rm = T))
+
+barplot(as.matrix(tab1), main = "Vignette 1")
+barplot(as.matrix(tab2), main = "Vignette 2")
+barplot(as.matrix(tab3), main = "Vignette 3")
+```
+
+## Next Steps
+
+- Nur mit Vignette 1 und 3 rechnen
+- Positive Emotionen anschauen
 
 ## References
+
+- Correlation Matrix
 
 ::: {#refs}
 :::
