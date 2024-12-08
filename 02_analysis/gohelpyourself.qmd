@@ -1,13 +1,12 @@
 ---
-title: "Go Help Yourself:"
-subtitle: "Teacher Educator Attributions of Failure and the Witholding of Social Support" 
-title-block-banner: true
+title: "Go Help Yourself?"
+subtitle: "Teacher Educator Attributions of Failure and the Provision of Social Support" 
+title-block-banner: "#3459e6"
 author: David Simon
 date: today
 date-format: "DD MMMM YYYY"
 editor: source
 execute:
-  echo: true
   warning: false
   message: false
   cache: true
@@ -15,18 +14,27 @@ format:
   html:
     echo: true
     theme: zephyr
-    mainfont: "Goudy Bookletter 1911"
-    fontsize: 1.1em
+    mainfont: "Arial"
+    fontsize: 1.2em
+    code-block-bg: true
+    code-block-border-left: "#3459e6"
     toc: true
     toc-location: left
-    toc-depth: 3
+    toc-depth: 4
     embed-resources: true
-    code-fold: false
+    code-fold: true
     code-tools: true
     code-link: true
 csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
 bibliography: references.bib
 ---
+
+```{css}
+#| echo: false
+p {
+  text-align: justify
+}
+```
 
 ## Information
 
@@ -49,15 +57,17 @@ library(lavaan)
 
 ## Data Analysis
 
-### (1) Read Data
+### 1 Read Data
+
+Read data:
 
 ```{r}
 data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 ```
 
-### (2) Measures
+### 2 Measures
 
-#### (2a) Exploratory Factor Analysis: Social Support Scale
+#### 2.1 Exploratory Factor Analysis: Social Support Scales  
 The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each question according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support best.
 
 ##### Dataevaluation
@@ -138,11 +148,11 @@ psych::cortest.bartlett(data_efa)$p.value
 *Step 1: How many factors to extract?*
 
 ```{r}
-psych::scree(data_efa, pc = FALSE)       # plot scree plot 
+psych::scree(data_efa, pc = FALSE)  # plot scree plot 
 psych::fa.parallel(data_efa, fa = "both")  # check against parallel analysis, missing data is treated pairwise
 ```
 
-The scree plot suggests two factors. Parallel analysis is revealing up to five factors.
+The scree plot suggests two factors. Parallel analysis is revealing up to four factors.
 
 *Step 2: Extract factors*
 
@@ -152,12 +162,13 @@ fit <- stats::factanal(data_efa, 3, rotation = "varimax")
 print(fit, digits = 2, cutoff = 0.3, sort = TRUE)
 ```
 
-
 *Step 3: Plot factors*
+
 ```{r}
 loadings <- fit$loadings
 psych::fa.diagram(loadings)
 ```
+
 Considering factor loadings >= 0.4 [@stevens2002applied], and with the intended assignment in mind (if the items loaded on unintended factors, they were not taken into account)
 
 - Informational support ("Hinweise und Ratschläge") is best represented through the items `sozunt_inf1`, `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and  `sozunt_inf5`,  
@@ -166,7 +177,15 @@ Considering factor loadings >= 0.4 [@stevens2002applied], and with the intended 
 
 - Emotional support ("Trost und Nähe") is best represented through the items `sozunt_emo2`, `sozunt_emo3` and  `sozunt_emo4`.
 
+(?)
+
+- Oblique Rotationsmethode ergibt andere Ergebnisse, prinzipiell könnten die Faktoren ja schon korreliert sein - aber wäre für die weiteren Rechnungen vielleicht ungünstiger
+- EFA mit psych-package `a <- psych::fa(data_efa, nfactors = 3, rotate = "varimax")` ergibt m.E. ähnliche Ergebnisse, vgl. `a$loadings` (komisch, wenn nicht; identisch sind sie aber nicht)
+- Das erste Modell, das die Daten laut Chisq-Test gut beschreibt, ist das mit 7 Faktoren: 4 Faktoren haben dann nur 1 Item. Im Wesentlichen bilden die übrigen 3 Faktoren, die hier genannten Items ab, lediglich `sozunt_emo2` würde keine Berücksichtigung mehr finden.
+- Für "Instrumental support" ist alpha .56. (s.u.); Richter et al. schreiben "Auf die Erfassung der instrumentellen Unterstützung von Seiten des Mentors wurde verzichtet, da die einschlägige Literatur zum Mentoring diese Form der Unterstützung bisher kaum thematisiert (diese Einschränkung wird im Diskussionsteil angesprochen)." Eine Konsequenz könnte sein, die Skala nicht weiter zu berücksichtigen. Womöglich spielt diese Art der Unterstützung tatsächlich keine Rolle.
+
 *Step 4: Evaluate Reliability*
+
 ```{r}
 inf_sup_alpha <- data %>% 
   dplyr::select(sozunt_inf1, sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
@@ -179,18 +198,13 @@ ins_sup_alpha <- data %>%
 emo_sup_alpha <- data %>%  
   dplyr::select(sozunt_emo2, sozunt_emo3, sozunt_emo4) %>%
   psych::alpha(title = "sozunt_emo")
-
-inf_sup_alpha$total
-ins_sup_alpha$total
-emo_sup_alpha$total
 ```
 
-Notiz:
-Für "Instrumental support" ist alpha .56. - Richter et al. schreiben "Auf die Erfassung der instrumentellen Unterstützung von Seiten des Mentors wurde verzichtet, da die einschlägige Literatur zum Mentoring diese Form der Unterstützung bisher kaum thematisiert (diese Einschränkung wird im Diskussionsteil angesprochen)."
+- Alpha informational support: `r inf_sup_alpha$total$std.alpha` 
+- Alpha instrumental support: `r ins_sup_alpha$total$std.alpha`  
+- Alpha emotional support: `r emo_sup_alpha$total$std.alpha`
 
-Eine Konsequenz könnte sein, die Skala nicht weiter zu berücksichtigen. Womöglich spielt diese Art der Unterstützung tatsächlich keine Rolle.
-
-#### (2b) Compute Scale Scores
+#### 2.2 Compute Scale Scores
 
 ```{r}
 # Factor vignette, dummy for each vignette
@@ -293,9 +307,9 @@ data <- data %>%
                                    na.rm = TRUE))
 ```
 
-#### (2c) Glossary
+#### 2.3 Glossary
 
-*Attributions* 
+*Attributions*   
 adapted from [@zurattributionsstil]
 
 - `int`: Internality
@@ -304,7 +318,7 @@ adapted from [@zurattributionsstil]
 - `con`: Controllability
 - `isg`: Attribution style: internal, stable and global
 
-*Affect* 
+*Affect*  
 after [@breyer2016deutsche]
 
 - `pos_aff`: Positive Affect
@@ -313,83 +327,148 @@ after [@breyer2016deutsche]
 - `gui`: Guilt
 - `sha`: Shame
 
-*Social Support*
+*Social Support*  
 adapted from [@richter2011soziale]
 
 - `inf_sup`: Informational support
 - `ins_sup`: Instrumental support
 - `emo_sup`: Emotional Support
 
-*Self Efficacy*
+*Self Efficacy*  
 adapted from [@tickell2024developing]
 
 - `seff_f1`: Pedagogical Practices
 - `seff_f2`: Relationships
 
-### (3) Results
+### 3 Results
 
-#### (3a) Attributional Theory
-According to 
+#### 3.1 Attributional Theory
+
+Weiner (1985) identified three causal dimensions.  
+
+One dimension of causes is their *locus*, or location within or outside of the actor (locus of control). Ability and effort are similar in locus, both being internal to the actor. In addition, they differ from causes such as chance or task difficulty, which are considered to be located in the environment, external to the actor.  
+
+A second dimension of causes is *stability*, which depicts a cause as
+constant or changing over time. Some causes, including ability, are
+viewed as stable over time. On the other hand, chance or luck fluctuates
+over time and is therefore unstable. Effort also is typically regarded as
+unstable, although labeling oneself or others as lazy or industrious
+implies stability in effort expenditure. 
+
+The third known causal dimension is *controllability*, or whether a cause is subject to volitional influence. Attribution theorists have proposed that ability, although internal to the person, is not subject to volitional control and change, whereas effort expenditure is considered amenable to personal control – “it could be otherwise.”
+
+Zitiert nach [@graham2020attributional]
+
+The locus of control dimension is particularly relevant to emotional reactions. Internal attributions for undesirable events or behaviors are frequently associated with self-focused negative emotions, such as guilt and shame. External attributions for the same behaviors and outcomes are generally associated with externally focused negative emotions, such as anger and resentment.
+
+Zitiert nach [@weiner1985attributional]
+
+Was würde das für die SAB bedeuten: Liegt die Ursache in der LAA, dann liegt es nicht an ihnen und sie reagieren ärgerlich - "die LAA sollen gefälligst liefern". (?)
+
+Ähnliche Effekte gibt es in Bezug auf Controllability wie folgt:
+
+In her earlier paper, Graham (1984) claimed that affect is the mediator between perceptions of *controllability* and subsequent helping behavior. As she explained, perceived uncontrollability gives rise to sympathy, which in turn promotes the commitment to help. In contrast, “perceived controllability elicits anger, and anger then leads to the withholding of help” Graham (1984)
+
+Graham (1990) suggested that failing students gain information about the causes of their failure from the affective displays of teachers. This attributional information may sometimes be quite direct, but at other times it may be “subtly, indirectly, and even unknowingly conveyed” (p. 18). Referring to the findings of a series of studies, the same author claimed that communication of pity and the offering of unsolicited help to the student might function as low-ability or even incompetence cues. On the other hand, when failure is attributed to insufficient effort, the attributional message communicated to the student by the teacher’s anger may have positive consequences.
+
+A study among Israeli primary school teachers (Butler, 1994) supported Graham’s findings. In this study it was found that teachers were more likely to respond to the low-effort students with anger and demands for better work and to the low-ability students with pity and offers of help.
+
+Zitiert nach [@georgiou2002teacher]
+
+- H1a: Controllability predicts witholding of help
+- H1b: Internality predicts witholding of help
+- H1c: The relationships are mediated by anger
+
+(?)
+
+- Problem "Internality" könnte low-effort und low-ability sein, was aber gegensätzliche Reaktionen auslösen würde. Wie könnte das trotzdem abgebildet werden?
+- Andere Emotionen außer Ärger finden keine Beachtung.
 
 ```{r}
 model1 <- '# direct effect
-           inf_sup ~ int
-           ins_sup ~ int
-           emo_sup ~ int
+           inf_sup ~ int + con
+           ins_sup ~ int + con
+           emo_sup ~ int + con 
            # mediators
-           ang ~ int
-           gui ~ int
-           sha ~ int
-           inf_sup ~ ang + gui + sha
-           ins_sup ~ ang + gui + sha
-           emo_sup ~ ang + gui + sha'
+           ang ~ int + con
+           inf_sup ~ ang
+           ins_sup ~ ang
+           emo_sup ~ ang'
 
 fit1 <- lavaan::sem(model1, data = data, missing = "fiml")
 
 summary(fit1)
-
-# CFI cut-off: .95; SRMR cut-off: .09
-fitMeasures(fit1, c("cfi","srmr"))
 ```
-#### (3b) Self Efficacy
+
+#### 3.2 Self Efficacy
+
+Mentors with high levels of efficacy might believe that they could control, or at least strongly influence, teacher students achievement and motivation. Thus, mentors with high sense of efficacy are more willing to take responsibility for failures and are more likely to assist lowachieving students during failure situations.
+
+- H2a: Mentors with high level of efficacy perceive the situation as more controllable (Controllability)
+- H2b: Mentors with high level of efficacy perceive the situation as externally caused (Internality = Locus of Control)
+
+- H3: Relationship Self-Efficacy positively predicts the provision of social support
+
+(?)
+
+- vielleicht: H2c: Mentors with high level of efficacy perceive the situation as unstable (Stability)
 
 ```{r}
 model2 <- 'inf_sup ~ seff_f2 + seff_f1
            ins_sup ~ seff_f2 + seff_f1
            emo_sup ~ seff_f2 + seff_f1
-           # emotions
-           ang ~ seff_f2 + seff_f1
-           gui ~ seff_f2 + seff_f1
-           sha ~ seff_f2 + seff_f1'
 
-fit2 <- lavaan::sem(model2, data = data, missing = "fiml",
-                    fixed.x = FALSE)
+           int ~ seff_f2 + seff_f1
+           con ~ seff_f2 + seff_f1'
+
+fit2 <- lavaan::sem(model2, data = data, missing = "fiml")
 
 summary(fit2)
 ```
 
+#### 3.3 Both
+
 ```{r}
 model3 <- '# direct effect
-           inf_sup ~ int + seff_f2 + seff_f1
-           ins_sup ~ int + seff_f2 + seff_f1
-           emo_sup ~ int + seff_f2 + seff_f1
+           inf_sup ~ int + con + seff_f2 + seff_f1
+           ins_sup ~ int + con + seff_f2 + seff_f1
+           emo_sup ~ int + con + seff_f2 + seff_f1
            # mediators
-           ang ~ int + seff_f2 + seff_f1
+           ang ~ int + con
            inf_sup ~ ang
            ins_sup ~ ang
-           emo_sup ~ ang'
+           emo_sup ~ ang
+           # else
+           int ~ seff_f2 + seff_f1
+           con ~ seff_f2 + seff_f1'
 
 fit3 <- lavaan::sem(model3, data = data, missing = "fiml")
 
 summary(fit3)
+
+# CFI cut-off: .95; SRMR cut-off: .09
+fitMeasures(fit3, c("chisq", "df", "pvalue", "cfi","srmr"))
 ```
 
-#### (3c) Descriptives Vignettes
+*Might there be a relationship between emotions and self-efficacy?*
+
+```{r}
+model4 <- 'ang ~ seff_f2 + seff_f1
+           gui ~ seff_f2 + seff_f1
+           sha ~ seff_f2 + seff_f1'
+
+fit4 <- lavaan::sem(model4, data = data, missing = "fiml")
+summary(fit4)
+```
+
+#### 3.4 Descriptives: Vignettes
 
 *Were the situations perceived as a failure?*
 
-- 1, 2, 3: Misserfolg
-- 4, 5, 6: Erfolg
+"How much do you see the lessons you have experienced as a failure or a success?"
+
+- 1, 2, 3: Failure
+- 4, 5, 6: Success
 
 ```{r}
 data_vig1 <- data %>% 
@@ -410,7 +489,8 @@ barplot(tab2, main = "Vignette 2")
 barplot(tab3, main = "Vignette 3")
 ```
 
-*Were the situations equally attributed?*
+*Were the situations cause equally attributed?*
+
 ```{r}
 tab1 <- data.frame(int = mean(data_vig1$int, na.rm = T),
                    sta = mean(data_vig1$sta, na.rm = T),
@@ -430,20 +510,13 @@ tab3 <- data.frame(int = mean(data_vig3$int, na.rm = T),
 barplot(as.matrix(tab1), main = "Vignette 1")
 barplot(as.matrix(tab2), main = "Vignette 2")
 barplot(as.matrix(tab3), main = "Vignette 3")
-             
-tab1 <- table(data_vig1$check_1)
-tab2 <- table(data_vig2$check_1)
-tab3 <- table(data_vig3$check_1)
-
-barplot(tab1, main = "Vignette 1")
-barplot(tab2, main = "Vignette 2")
-barplot(tab3, main = "Vignette 3")
 ```
 
 ## Next Steps
 
-- Nur mit Vignette 1 und 3 rechnen
+- Nur mit Vignette 1 und 3 rechnen (?)
 - Positive Emotionen anschauen
+- Hätte es eine CFA sein sollen? Ich habe eine EFA gerechnet, weil ich mir ja Items ausgedacht habe und wissen wollte, welche davon die passenden sind.
 
 ## References
 
