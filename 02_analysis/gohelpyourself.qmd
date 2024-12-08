@@ -404,12 +404,12 @@ summary(fit1)
 
 Mentors with high levels of efficacy might believe that they could control teacher students achievement and motivation. Thus, mentors with high sense of efficacy are more willing to take responsibility for failures and are more likely to assist low achieving teacher students during failure situations.
 
-- H2a: Mentors with high level of efficacy perceive the situation as more controllable (Controllability)
-- H2b: Mentors with high level of efficacy perceive the situation as externally caused (Internality = Locus of Control)
+- H2: Mentors with high level of efficacy perceive the situation as more controllable (Controllability)
 - H3: Relationship Self-Efficacy positively predicts the provision of social support
 
 (?)
 
+- H2b: Mentors with high level of efficacy perceive the situation as externally caused (Internality = Locus of Control)
 - vielleicht: H2c: Mentors with high level of efficacy perceive the situation as unstable (Stability)
 
 ```{r}
@@ -417,7 +417,6 @@ model2 <- 'inf_sup ~ seff_f2 + seff_f1
            ins_sup ~ seff_f2 + seff_f1
            emo_sup ~ seff_f2 + seff_f1
 
-           int ~ seff_f2 + seff_f1
            con ~ seff_f2 + seff_f1'
 
 fit2 <- lavaan::sem(model2, data = data, missing = "fiml")
@@ -438,7 +437,6 @@ model3 <- '# direct effect
            ins_sup ~ ang
            emo_sup ~ ang
            # else
-           int ~ seff_f2 + seff_f1
            con ~ seff_f2 + seff_f1'
 
 fit3 <- lavaan::sem(model3, data = data, missing = "fiml")
