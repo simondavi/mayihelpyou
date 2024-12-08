@@ -68,7 +68,7 @@ data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 ### 2 Measures
 
 #### 2.1 Exploratory Factor Analysis: Social Support Scales  
-The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each question according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support best.
+The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each facet according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support best.
 
 ##### Dataevaluation
 
@@ -83,7 +83,7 @@ desc <- desc[, c("name", "type", "n", "missing", "unique", "mode")]
 desc
 ```
 
-Mean substitution of missing data:
+Mean substitution of missing data in order to perform an EFA:
 
 ```{r}
 mean_substitution <- function(df){
@@ -359,13 +359,13 @@ The third known causal dimension is *controllability*, or whether a cause is sub
 
 Zitiert nach [@graham2020attributional]
 
-The locus of control dimension is particularly relevant to emotional reactions. Internal attributions for undesirable events or behaviors are frequently associated with self-focused negative emotions, such as guilt and shame. External attributions for the same behaviors and outcomes are generally associated with externally focused negative emotions, such as anger and resentment.
+The *locus of control* dimension is particularly relevant to emotional reactions. Internal attributions for undesirable events or behaviors are frequently associated with self-focused negative emotions, such as guilt and shame. External attributions for the same behaviors and outcomes are generally associated with externally focused negative emotions, such as anger and resentment.
 
 Zitiert nach [@weiner1985attributional]
 
 Was würde das für die SAB bedeuten: Liegt die Ursache in der LAA, dann liegt es nicht an ihnen und sie reagieren ärgerlich - "die LAA sollen gefälligst liefern". (?)
 
-Ähnliche Effekte gibt es in Bezug auf Controllability wie folgt:
+Ähnliche Effekte gibt es in Bezug auf "controllability" wie folgt:
 
 In her earlier paper, Graham (1984) claimed that affect is the mediator between perceptions of *controllability* and subsequent helping behavior. As she explained, perceived uncontrollability gives rise to sympathy, which in turn promotes the commitment to help. In contrast, “perceived controllability elicits anger, and anger then leads to the withholding of help” Graham (1984)
 
@@ -382,7 +382,7 @@ Zitiert nach [@georgiou2002teacher]
 (?)
 
 - Problem "Internality" könnte low-effort und low-ability sein, was aber gegensätzliche Reaktionen auslösen würde. Wie könnte das trotzdem abgebildet werden?
-- Andere Emotionen außer Ärger finden keine Beachtung.
+- Andere Emotionen außer Ärger finden bisher keine Beachtung
 
 ```{r}
 model1 <- '# direct effect
@@ -402,11 +402,10 @@ summary(fit1)
 
 #### 3.2 Self Efficacy
 
-Mentors with high levels of efficacy might believe that they could control, or at least strongly influence, teacher students achievement and motivation. Thus, mentors with high sense of efficacy are more willing to take responsibility for failures and are more likely to assist lowachieving students during failure situations.
+Mentors with high levels of efficacy might believe that they could control teacher students achievement and motivation. Thus, mentors with high sense of efficacy are more willing to take responsibility for failures and are more likely to assist low achieving teacher students during failure situations.
 
 - H2a: Mentors with high level of efficacy perceive the situation as more controllable (Controllability)
 - H2b: Mentors with high level of efficacy perceive the situation as externally caused (Internality = Locus of Control)
-
 - H3: Relationship Self-Efficacy positively predicts the provision of social support
 
 (?)
