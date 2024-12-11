@@ -1,10 +1,15 @@
 ---
-title: "Go Help Yourself?"
-subtitle: "Teacher Educator Attributions of Failure and the Provision of Social Support" 
+title: Go Help Yourself?
+subtitle: Teacher Educator Attributions of Failure and the Provision of Social Support
 title-block-banner: "#3459e6"
-author: David Simon
+author:
+  - name: David Simon
+    orcid: 0009-0005-6451-3790
+    email: da.simon@dipf.de
+    affiliations:
+      - name: DIPF | Leibniz Institute for Research and Information in Education
 date: today
-date-format: "DD MMMM YYYY"
+date-format: DD MMMM YYYY
 editor: source
 execute:
   warning: false
@@ -14,7 +19,7 @@ format:
   html:
     echo: true
     theme: zephyr
-    mainfont: "Arial"
+    mainfont: Arial
     fontsize: 1.2em
     code-block-bg: true
     code-block-border-left: "#3459e6"
@@ -50,16 +55,15 @@ p {
 ####  ------------- Load Packages ------------- ####
 library(here)           # find files
 library(tidyverse)      # for data management
-library(psych)          # for scale construction
-library(tidySEM)        # for SEM
-library(lavaan) 
+library(psych)          # for scale construction, EFA, CFA
+library(lavaan)         # for SEM
 ```
 
 ## Data Analysis
 
 ### 1 Read Data
 
-Read data:
+Data:
 
 ```{r}
 data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
@@ -67,54 +71,16 @@ data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 
 ### 2 Measures
 
-#### 2.1 Exploratory Factor Analysis: Social Support Scales  
-The items measuring social support were taken from [@richter2011soziale] and adapted to the educators' perspective. Items were added to each facet according to the theoretical understanding. An EFA was calculated to determine which items represented the three facets of social support best.
+#### 2.1 Exploratory Factor Analysis (EFA): Social Support Scales  
+The items measuring social support were taken from Richter at al. [-@richter2011soziale] and Schulz and Schwarzer [-@BSS]. We adapted to the educators' perspective. Items were added to each facet according to our theoretical understanding of social support. An EFA was calculated to determine which items represented the three facets of social support best.
 
 ##### Dataevaluation
 
-*Evaluation of missingness:*
+Data for EFA:
 
 ```{r}
 data_efa <- data %>%
   dplyr::select(sozunt_ins5:sozunt_ins2)
-
-desc <- tidySEM::descriptives(data_efa)
-desc <- desc[, c("name", "type", "n", "missing", "unique", "mode")]
-desc
-```
-
-Mean substitution of missing data in order to perform an EFA:
-
-```{r}
-mean_substitution <- function(df){
-  n_cols <- ncol(df)
-  
-  for(i in 1:n_cols){
-  # get the current column
-  column_i <- df[, i]
-  
-  # get the mean of the current column
-  mean_i <- mean(column_i, na.rm = TRUE)
-  
-  # get the NAs in the current column
-  NAs_i <- which(is.na(column_i))
-  
-  # report the number of NAs
-  N_NAs <- length(NAs_i)
-  
-  # replace the NAs in the current column
-  column_i[NAs_i] <- mean_i
-  
-  # replace the original column with the
-  ## updated columns
-  df[, i] <- column_i
-  
-  }
-  
-  return(df)
-}
-
-data_efa <- mean_substitution(data_efa)
 ```
 
 *Kaiser–Meyer–Olkin (KMO) Test:*
@@ -130,7 +96,7 @@ data_efa <- mean_substitution(data_efa)
 psych::KMO(data_efa)
 ```
 
-Deletion of those items, who failed the KMO test (< 0.50):
+Deletion of item `sozunt_ins4`, who failed the KMO test (< 0.50):
 
 ```{r}
 data_efa <- data_efa %>%
@@ -145,66 +111,221 @@ psych::cortest.bartlett(data_efa)$p.value
 
 ##### Exploratory Factor Analysis
 
-*Step 1: How many factors to extract?*
+*Step 1: Plausibility of a three factor solution*
+
+Get Eigenvalues:
+
+```{r}
+eig <- eigen(cor(data_efa, use = "complete.obs")) # get eigenvalues
+eig$values
+```
+Show scree plot:
 
 ```{r}
 psych::scree(data_efa, pc = FALSE)  # plot scree plot 
-psych::fa.parallel(data_efa, fa = "both")  # check against parallel analysis, missing data is treated pairwise
 ```
 
-The scree plot suggests two factors. Parallel analysis is revealing up to four factors.
+The eigenvalue method (“Kaiser’s rule”) suggested four factors. The scree plot suggested two factors. In line with our theoretical understanding of the construct we started with three factors first, assuming correlated factors: 
 
-*Step 2: Extract factors*
+*Step 2: Factor extraction*
 
 ```{r}
-set.seed(123)
-fit <- stats::factanal(data_efa, 3, rotation = "varimax")
-print(fit, digits = 2, cutoff = 0.3, sort = TRUE)
+efa <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin")
+loadings <- efa$loadings
+loadings
 ```
 
-*Step 3: Plot factors*
+*Step 3: Item removal*
+
+Only variables with loadings of .32 and above were interpreted as suggested as a first rule of thumb by Tabachnick and Fidell [-@tabachnick2001using]. 
+
+Consequently `sozunt_emo1`, `sozunt_ins3` and `sozunt_ins2` were not further considered:
 
 ```{r}
-loadings <- fit$loadings
+data_efa <- data_efa %>%
+  dplyr::select(-sozunt_emo1, -sozunt_ins3, -sozunt_ins2)
+```
+
+The EFA was repeated:
+
+```{r}
+efa <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin")
+loadings <- efa$loadings
+loadings
+```
+
+*Step 4: Interpretation of factors*  
+
+Factors were interpreted given the intended theoretical assignment of items to factors and a final cut of .45 regarding the loadings, which equals a 20% variance overlap between variable and factor and was characterised as "fair" by Comray (-@Comrey1962) and examplified in Tabachnick and Fidell [-@tabachnick2001using]. 
+
+This resulted in the following three factors, which correspond to the three facets of social support:
+
+- Factor 1: Informational support ("Tips and advice") was best represented through the items `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and  `sozunt_inf5`,
+
+- Factor 2: Emotional support ("Comfort and nearness") was best represented through the items `sozunt_emo2`, `sozunt_emo3` and `sozunt_emo4`.
+
+- Factor 3: Instrumental support ("Goods and materials") was best represented through the items `sozunt_ins1` and `sozunt_ins5`,
+
+Adjustment of data accordingly:
+
+```{r}
+data_efa <- data_efa %>%
+  dplyr::select(sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5,
+                sozunt_emo2, sozunt_emo3, sozunt_emo4,
+                sozunt_ins1, sozunt_ins5)
+```
+
+*Step 5: Final solution*
+
+```{r}
+efa <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin")
+loadings <- efa$loadings
+loadings
 psych::fa.diagram(loadings)
 ```
+`sozunt_inf1` does not meet the cutoff criterion anymore. Since the item has no cross-loading we kept it and would only discard it, if reliability could be improved by dropping it, which was not the case: 
 
-Considering factor loadings >= 0.4 [@stevens2002applied], and with the intended assignment in mind (if the items loaded on unintended factors, they were not taken into account)
-
-- Informational support ("Hinweise und Ratschläge") is best represented through the items `sozunt_inf1`, `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and  `sozunt_inf5`,  
-
-- Instrumental support ("Güter und Materialien") is best represented through the items `sozunt_ins1` and `sozunt_ins5`,
-
-- Emotional support ("Trost und Nähe") is best represented through the items `sozunt_emo2`, `sozunt_emo3` and  `sozunt_emo4`.
-
-(?)
-
-- Oblique Rotationsmethode ergibt andere Ergebnisse, prinzipiell könnten die Faktoren ja schon korreliert sein - aber wäre für die weiteren Rechnungen vielleicht ungünstiger
-- EFA mit psych-package `a <- psych::fa(data_efa, nfactors = 3, rotate = "varimax")` ergibt m.E. ähnliche Ergebnisse, vgl. `a$loadings` (komisch, wenn nicht; identisch sind sie aber nicht)
-- Das erste Modell, das die Daten laut Chisq-Test gut beschreibt, ist das mit 7 Faktoren: 4 Faktoren haben dann nur 1 Item. Im Wesentlichen bilden die übrigen 3 Faktoren, die hier genannten Items ab, lediglich `sozunt_emo2` würde keine Berücksichtigung mehr finden.
-- Für "Instrumental support" ist alpha .56. (s.u.); Richter et al. schreiben "Auf die Erfassung der instrumentellen Unterstützung von Seiten des Mentors wurde verzichtet, da die einschlägige Literatur zum Mentoring diese Form der Unterstützung bisher kaum thematisiert (diese Einschränkung wird im Diskussionsteil angesprochen)." Eine Konsequenz könnte sein, die Skala nicht weiter zu berücksichtigen. Womöglich spielt diese Art der Unterstützung tatsächlich keine Rolle.
-
-*Step 4: Evaluate Reliability*
+*Step 6: Evaluate Reliability*
 
 ```{r}
 inf_sup_alpha <- data %>% 
-  dplyr::select(sozunt_inf1, sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
+  dplyr::select(sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
   psych::alpha(title = "sozunt_inf")
-
-ins_sup_alpha <- data %>% 
-  dplyr::select(sozunt_ins1, sozunt_ins5) %>%
-  psych::alpha(title = "sozunt_ins")
 
 emo_sup_alpha <- data %>%  
   dplyr::select(sozunt_emo2, sozunt_emo3, sozunt_emo4) %>%
   psych::alpha(title = "sozunt_emo")
+
+ins_sup_alpha <- data %>% 
+  dplyr::select(sozunt_ins1, sozunt_ins5) %>%
+  psych::alpha(title = "sozunt_ins")
 ```
 
-- Alpha informational support: `r inf_sup_alpha$total$std.alpha` 
-- Alpha instrumental support: `r ins_sup_alpha$total$std.alpha`  
+- Alpha informational support: `r inf_sup_alpha$total$std.alpha`
 - Alpha emotional support: `r emo_sup_alpha$total$std.alpha`
+- Alpha instrumental support: `r ins_sup_alpha$total$std.alpha`  
 
-#### 2.2 Compute Scale Scores
+*Step 7: Does this solution fit the data?*
+
+Conducting a maximum likelihood factor analysis showed the solution fits the data well:
+
+```{r}
+three_efa_ml <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin", fm = "ml")
+
+three_efa_ml_chisq <- three_efa_ml$STATISTIC  # chi-square statistic
+three_efa_ml_pval <- three_efa_ml$PVAL  # p-value
+```
+
+- Chi-square: `r three_efa_ml_chisq`
+- P-value: `r three_efa_ml_pval`
+
+And further parsimoniousness would not:
+
+```{r}
+two_efa_ml <- fa(data_efa, nfactors = 2, rotate = "oblimin", fm = "ml")
+
+two_efa_ml_chisq <- two_efa_ml$STATISTIC  # chi-square statistic
+two_efa_ml_pval <- two_efa_ml$PVAL  # p-value
+```
+
+- Chi-square: `r two_efa_ml_chisq`
+- P-value: `r two_efa_ml_pvalchiquadrat statistik
+
+#### 2.2 Confirmatory Factor Analysis (CFA):  Self-Efficacy Scale
+Tickell and Klassen [-@tickell2024developing] developed a  scale for measuring teacher mentoring self-efficacy beliefs and suggest a two-factor model, with factors named as *Pedagogical Practices* and *Professional Relationships*. We tested this factor structure in our German translation of the questionnaire:
+
+##### Confirmatory Factor Analysis
+
+Data for CFA:
+
+```{r}
+data_cfa <- data %>%
+  dplyr::select(seffsab_1:seffsab_9)
+```
+
+*Step 1: Fitting a two-factor model*
+
+```{r}
+# specify the model
+cfa_model <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                      seffsab_6 + seffsab_28 + seffsab_48 + seffsab_39 +
+                      seffsab_46 + seffsab_47 + seffsab_4
+               rel =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                      seffsab_9 '
+
+# fit the model
+fit_cfa <- cfa(cfa_model, data = data_cfa)
+```
+
+Model fit was poor:
+
+```{r}
+# CFI cut-off: .95; SRMR cut-off: .09
+fitMeasures(fit_cfa, c("chisq", "df", "pvalue", "cfi", "srmr"))
+```
+
+*Step 2: Evaluate Reliability*
+
+In order to improve the model-fit we evaluated reliability:
+
+```{r}
+sef_pea_alpha <- data %>% 
+  dplyr::select(seffsab_1, seffsab_2, seffsab_20, seffsab_14, seffsab_6, 
+                seffsab_28, seffsab_48, seffsab_39, seffsab_46, seffsab_47,
+                seffsab_4) %>%
+  psych::alpha(title = "sef_pea_alpha")
+
+sef_rel_alpha <- data %>%  
+  dplyr::select(seffsab_29, seffsab_44, seffsab_27, seffsab_42, seffsab_9) %>%
+  psych::alpha(title = "sef_rel_alpha")
+```
+
+We were interested whether reliability improves if an item is dropped and if that might as well improve model fit. Alpha could not be improved in case of *Professional Relationships* nor *Relationships*: 
+
+```{r}
+sef_pea_alpha$alpha.drop
+sef_rel_alpha$alpha.drop
+```
+
+But in case of *Professional Relationships* several items could be dropped without worsening. As we believed the translation of `seffsab_48` might be not suitable, we discarded this item and reran the CFA:
+
+```{r}
+data_cfa <- data_cfa %>%
+  dplyr::select(-seffsab_48)
+
+# specify the model
+cfa_model_2 <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                        seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
+                        seffsab_47 + seffsab_4
+                 rel =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                        seffsab_9 '
+
+# fit the model
+fit_cfa_2 <- cfa(cfa_model_2, data = data_cfa)
+fitMeasures(fit_cfa_2, c("chisq", "df", "pvalue", "cfi", "srmr"))
+```
+
+Model fit improved, but was still not good enough;
+
+```{r}
+# CFI cut-off: .95; SRMR cut-off: .09
+fitMeasures(fit_cfa_2, c("chisq", "df", "pvalue", "cfi", "srmr"))
+```
+
+Looking at the reliability output again, we saw no room for further improvement:
+
+```{r}
+sef_pea_alpha <- data %>% 
+  dplyr::select(seffsab_1, seffsab_2, seffsab_20, seffsab_14, seffsab_6, 
+                seffsab_28, seffsab_39, seffsab_46, seffsab_47, seffsab_4) %>%
+  psych::alpha(title = "sef_pea_alpha")
+
+sef_pea_alpha$alpha.drop
+```
+
+Although the model fit was not as good as desired, we considered it to be sufficient.
+
+#### 2.3 Compute Scale Scores
 
 ```{r}
 # Factor vignette, dummy for each vignette
@@ -260,44 +381,31 @@ data <- data %>%
 
 # Informational support: "Hinweise und Ratschläge"
 data <- data %>% 
-  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf1,
-                                                           sozunt_inf2,
-                                                           sozunt_inf3, 
+  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf3,
                                                            sozunt_inf4, 
                                                            sozunt_inf5)),
                                    na.rm = TRUE),
-                
-## Instrumental support: "Güter und Materialien"                
-                ins_sup = rowMeans(subset(data, select = c(sozunt_ins1, 
-                                                           sozunt_ins5)),
-                                 na.rm = TRUE),
 
 # Emotional support: "Trost und Nähe"
                 emo_sup = rowMeans(subset(data, select = c(sozunt_emo2, 
                                                            sozunt_emo3, 
                                                            sozunt_emo4)),
-                                   na.rm = TRUE))
+                                   na.rm = TRUE),
+                
+## Instrumental support: "Güter und Materialien"                
+                ins_sup = rowMeans(subset(data, select = c(sozunt_ins1, 
+                                                           sozunt_ins5)),
+                                 na.rm = TRUE))
 
 ## Self Efficacy
 
+# Self Efficacy, Factor 1: Pedagogical Practices   
 data <- data %>% 
-  dplyr::mutate(seff = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
-                                                        seffsab_20, seffsab_14, 
-                                                        seffsab_6, seffsab_28,
-                                                        seffsab_48, seffsab_39,
-                                                        seffsab_46, seffsab_47,
-                                                        seffsab_4, seffsab_29,
-                                                        seffsab_44, seffsab_27,
-                                                        seffsab_42, seffsab_9)),
-                                na.rm = TRUE),
-
-# Self Efficacy, Factor 1: Pedagogical Practices                        
-                seff_f1 = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
+  dplyr::mutate(seff_f1 = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
                                                            seffsab_20, seffsab_14, 
-                                                           seffsab_6, seffsab_28,
-                                                           seffsab_48, seffsab_39,
-                                                           seffsab_46, seffsab_47,
-                                                           seffsab_4)),
+                                                           seffsab_6, seffsab_28, 
+                                                           seffsab_39, seffsab_46, 
+                                                           seffsab_47, seffsab_4)),
                                    na.rm = TRUE),
 
 # Self Efficacy, Factor 2: Relationships
@@ -307,7 +415,7 @@ data <- data %>%
                                    na.rm = TRUE))
 ```
 
-#### 2.3 Glossary
+#### 2.4 Glossary
 
 *Attributions*   
 adapted from [@zurattributionsstil]
@@ -316,7 +424,6 @@ adapted from [@zurattributionsstil]
 - `sta`: Stability
 - `glo`: Globality
 - `con`: Controllability
-- `isg`: Attribution style: internal, stable and global
 
 *Affect*  
 after [@breyer2016deutsche]
