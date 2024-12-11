@@ -219,17 +219,7 @@ three_efa_ml_pval <- three_efa_ml$PVAL  # p-value
 - Chi-square: `r three_efa_ml_chisq`
 - P-value: `r three_efa_ml_pval`
 
-And further parsimoniousness would not:
-
-```{r}
-two_efa_ml <- fa(data_efa, nfactors = 2, rotate = "oblimin", fm = "ml")
-
-two_efa_ml_chisq <- two_efa_ml$STATISTIC  # chi-square statistic
-two_efa_ml_pval <- two_efa_ml$PVAL  # p-value
-```
-
-- Chi-square: `r two_efa_ml_chisq`
-- P-value: `r two_efa_ml_pvalchiquadrat statistik
+--> No
 
 #### 2.2 Confirmatory Factor Analysis (CFA):  Self-Efficacy Scale
 Tickell and Klassen [-@tickell2024developing] developed a  scale for measuring teacher mentoring self-efficacy beliefs and suggest a two-factor model, with factors named as *Pedagogical Practices* and *Professional Relationships*. We tested this factor structure in our German translation of the questionnaire:
