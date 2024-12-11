@@ -381,7 +381,8 @@ data <- data %>%
 
 # Informational support: "Hinweise und Ratschläge"
 data <- data %>% 
-  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf3,
+  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf2,
+                                                           sozunt_inf3,
                                                            sozunt_inf4, 
                                                            sozunt_inf5)),
                                    na.rm = TRUE),
