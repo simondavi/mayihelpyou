@@ -205,22 +205,6 @@ ins_sup_alpha <- data %>%
 - Alpha emotional support: `r emo_sup_alpha$total$std.alpha`
 - Alpha instrumental support: `r ins_sup_alpha$total$std.alpha`  
 
-*Step 7: Does this solution fit the data?*
-
-Conducting a maximum likelihood factor analysis showed the solution fits the data well:
-
-```{r}
-three_efa_ml <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin", fm = "ml")
-
-three_efa_ml_chisq <- three_efa_ml$STATISTIC  # chi-square statistic
-three_efa_ml_pval <- three_efa_ml$PVAL  # p-value
-```
-
-- Chi-square: `r three_efa_ml_chisq`
-- P-value: `r three_efa_ml_pval`
-
---> No
-
 #### 2.2 Confirmatory Factor Analysis (CFA):  Self-Efficacy Scale
 Tickell and Klassen [-@tickell2024developing] developed a  scale for measuring teacher mentoring self-efficacy beliefs and suggest a two-factor model, with factors named as *Pedagogical Practices* and *Professional Relationships*. We tested this factor structure in our German translation of the questionnaire:
 
