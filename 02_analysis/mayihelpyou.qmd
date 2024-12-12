@@ -1,5 +1,5 @@
 ---
-title: Go Help Yourself?
+title: May I Help You?
 subtitle: Teacher Educator Attributions of Failure and the Provision of Social Support
 title-block-banner: "#3459e6"
 author:
