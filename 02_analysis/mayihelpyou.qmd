@@ -1,6 +1,6 @@
 ---
 title: May I Help You?
-subtitle: Teacher Educator Attributions of Failure and the Provision of Social Support
+subtitle: Exploring Teacher Educators' Attributions of Failure, Self-Efficacy, and Social Support
 title-block-banner: "#3459e6"
 author:
   - name: David Simon
@@ -54,9 +54,9 @@ p {
 
 ####  ------------- Load Packages ------------- ####
 library(here)           # find files
-library(tidyverse)      # for data management
-library(psych)          # for scale construction, EFA, CFA
-library(lavaan)         # for SEM
+library(tidyverse)      # data management
+library(psych)          # scale construction, EFA, CFA
+library(lavaan)         # SEM
 ```
 
 ## Data Analysis
@@ -72,7 +72,7 @@ data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 ### 2 Measures
 
 #### 2.1 Exploratory Factor Analysis (EFA): Social Support Scales  
-The items measuring social support were taken from Richter at al. [-@richter2011soziale] and Schulz and Schwarzer [-@BSS]. We adapted to the educators' perspective. Items were added to each facet according to our theoretical understanding of social support. An EFA was calculated to determine which items represented the three facets of social support best.
+The items measuring social support were taken from Richter at al. [-@richter2011soziale] and Schulz and Schwarzer [-@BSS]. We adapted them to the educators' perspective (Provider). Items were added to each facet according to our theoretical understanding of social support. An EFA was calculated to determine which items represented the three facets of social support best.
 
 ##### Dataevaluation
 
@@ -119,6 +119,7 @@ Get Eigenvalues:
 eig <- eigen(cor(data_efa, use = "complete.obs")) # get eigenvalues
 eig$values
 ```
+
 Show scree plot:
 
 ```{r}
@@ -156,7 +157,7 @@ loadings
 
 *Step 4: Interpretation of factors*  
 
-Factors were interpreted given the intended theoretical assignment of items to factors and a final cut of .45 regarding the loadings, which equals a 20% variance overlap between variable and factor and was characterised as "fair" by Comray (-@Comrey1962) and examplified in Tabachnick and Fidell [-@tabachnick2001using]. 
+Factors were interpreted given the intended theoretical assignment of items to factors and a final cut of .45 regarding the loadings, which equals a 20% variance overlap between variable and factor and was characterised as "fair" by Comray [-@Comrey1962] and examplified in Tabachnick and Fidell [-@tabachnick2001using]. 
 
 This resulted in the following three factors, which correspond to the three facets of social support:
 
@@ -183,7 +184,8 @@ loadings <- efa$loadings
 loadings
 psych::fa.diagram(loadings)
 ```
-`sozunt_inf1` does not meet the cutoff criterion anymore. Since the item has no cross-loading we kept it and would only discard it, if reliability could be improved by dropping it, which was not the case: 
+
+`sozunt_inf2` does not meet the cutoff criterion anymore. Since the deviation is small, we kept it and would only discard it, if reliability could be improved by dropping it, which was not the case: 
 
 *Step 6: Evaluate Reliability*
 
@@ -257,8 +259,8 @@ sef_rel_alpha <- data %>%
 We were interested whether reliability improves if an item is dropped and if that might as well improve model fit. Alpha could not be improved in case of *Professional Relationships* nor *Relationships*: 
 
 ```{r}
-sef_pea_alpha$alpha.drop
-sef_rel_alpha$alpha.drop
+sef_pea_alpha$alpha.drop[1:2]
+sef_rel_alpha$alpha.drop[1:2]
 ```
 
 But in case of *Professional Relationships* several items could be dropped without worsening. As we believed the translation of `seffsab_48` might be not suitable, we discarded this item and reran the CFA:
@@ -276,7 +278,6 @@ cfa_model_2 <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 +
 
 # fit the model
 fit_cfa_2 <- cfa(cfa_model_2, data = data_cfa)
-fitMeasures(fit_cfa_2, c("chisq", "df", "pvalue", "cfi", "srmr"))
 ```
 
 Model fit improved, but was still not good enough;
@@ -294,7 +295,7 @@ sef_pea_alpha <- data %>%
                 seffsab_28, seffsab_39, seffsab_46, seffsab_47, seffsab_4) %>%
   psych::alpha(title = "sef_pea_alpha")
 
-sef_pea_alpha$alpha.drop
+sef_pea_alpha$alpha.drop[1:2]
 ```
 
 Although the model fit was not as good as desired, we considered it to be sufficient.
@@ -315,6 +316,13 @@ data <- data %>%
 
 data$vig <- as.factor(data$vig)
 
+# Mentoring Experience
+data <- data %>%
+  dplyr::mutate(exp_men = coalesce(BEKE2_KS == TRUE, BEKE2_KS, BEFA1_SQ002))
+
+
+# Experience as a Teacher
+
 ## Attribution 
 
 data <- data %>%
@@ -322,15 +330,6 @@ data <- data %>%
                 sta = sta_1,  # stability 
                 glo = glo_1,  # globality
                 con = kon_1)  # controllability
-
-# Attribution style: Int, Sta, Glo
-data <- data %>% 
-  dplyr::mutate(isg = rowMeans(subset(data, select = c(int, sta, glo)), na.rm = TRUE))
-
-isg_alpha <- data %>% 
-  dplyr::select(int, sta, glo) %>%
-  psych::alpha(title = "isg_alpha")
-
 
 ## Affect 
 
@@ -353,7 +352,7 @@ data <- data %>%
 
 ## Social Support
 
-# Informational support: "Hinweise und Ratschläge"
+# Informational support
 data <- data %>% 
   dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf2,
                                                            sozunt_inf3,
@@ -361,13 +360,13 @@ data <- data %>%
                                                            sozunt_inf5)),
                                    na.rm = TRUE),
 
-# Emotional support: "Trost und Nähe"
+# Emotional support
                 emo_sup = rowMeans(subset(data, select = c(sozunt_emo2, 
                                                            sozunt_emo3, 
                                                            sozunt_emo4)),
                                    na.rm = TRUE),
                 
-## Instrumental support: "Güter und Materialien"                
+## Instrumental support               
                 ins_sup = rowMeans(subset(data, select = c(sozunt_ins1, 
                                                            sozunt_ins5)),
                                  na.rm = TRUE))
@@ -376,7 +375,7 @@ data <- data %>%
 
 # Self Efficacy, Factor 1: Pedagogical Practices   
 data <- data %>% 
-  dplyr::mutate(seff_f1 = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
+  dplyr::mutate(sef_pea = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
                                                            seffsab_20, seffsab_14, 
                                                            seffsab_6, seffsab_28, 
                                                            seffsab_39, seffsab_46, 
@@ -384,7 +383,7 @@ data <- data %>%
                                    na.rm = TRUE),
 
 # Self Efficacy, Factor 2: Relationships
-                seff_f2 = rowMeans(subset(data, select = c(seffsab_29,seffsab_44,
+                sef_rel = rowMeans(subset(data, select = c(seffsab_29,seffsab_44,
                                                            seffsab_27,seffsab_42, 
                                                            seffsab_9)),
                                    na.rm = TRUE))
@@ -403,8 +402,8 @@ adapted from [@zurattributionsstil]
 *Affect*  
 after [@breyer2016deutsche]
 
-- `pos_aff`: Positive Affect
-- `neg_aff`: Negative Affect
+- `pos_aff`: Positive affect
+- `neg_aff`: Negative affect
 - `ang`: Anger
 - `gui`: Guilt
 - `sha`: Shame
@@ -414,13 +413,13 @@ adapted from [@richter2011soziale]
 
 - `inf_sup`: Informational support
 - `ins_sup`: Instrumental support
-- `emo_sup`: Emotional Support
+- `emo_sup`: Emotional support
 
 *Self Efficacy*  
 adapted from [@tickell2024developing]
 
-- `seff_f1`: Pedagogical Practices
-- `seff_f2`: Relationships
+- `sef_pea`: Pedagogical Practices
+- `sef_res`: Relationships
 
 ### 3 Results
 
@@ -430,14 +429,9 @@ Weiner (1985) identified three causal dimensions.
 
 One dimension of causes is their *locus*, or location within or outside of the actor (locus of control). Ability and effort are similar in locus, both being internal to the actor. In addition, they differ from causes such as chance or task difficulty, which are considered to be located in the environment, external to the actor.  
 
-A second dimension of causes is *stability*, which depicts a cause as
-constant or changing over time. Some causes, including ability, are
-viewed as stable over time. On the other hand, chance or luck fluctuates
-over time and is therefore unstable. Effort also is typically regarded as
-unstable, although labeling oneself or others as lazy or industrious
-implies stability in effort expenditure. 
+A second dimension of causes is *stability*, which depicts a cause as constant or changing over time. Some causes, including ability, are viewed as stable over time. On the other hand, chance or luck fluctuates over time and is therefore unstable. Effort also is typically regarded as unstable, although labeling oneself or others as lazy or industrious implies stability in effort expenditure. 
 
-The third known causal dimension is *controllability*, or whether a cause is subject to volitional influence. Attribution theorists have proposed that ability, although internal to the person, is not subject to volitional control and change, whereas effort expenditure is considered amenable to personal control – “it could be otherwise.”
+The third known causal dimension is *controllability*, or whether a cause is subject to volitional influence. Attribution theorists have proposed that ability, although internal to the person, is not subject to volitional control and change, whereas effort expenditure is considered amenable to personal control – “it could be otherwise”.
 
 Zitiert nach [@graham2020attributional]
 
@@ -459,14 +453,35 @@ Zitiert nach [@georgiou2002teacher]
 
 - H1a: Controllability predicts witholding of help
 - H1b: Internality predicts witholding of help
-- H1c: The relationships are mediated by anger
-
-(?)
-
-- Problem "Internality" könnte low-effort und low-ability sein, was aber gegensätzliche Reaktionen auslösen würde. Wie könnte das trotzdem abgebildet werden?
-- Andere Emotionen außer Ärger finden bisher keine Beachtung
+- H1c: The effect of internality on withholding help is moderated by stability, such that internality predicts withholding help more strongly when stability is low
+- H1d: The relationships are mediated by anger
 
 ```{r}
+# mean center variables
+
+# Independent
+data$int_centered <- scale(data$int, center = TRUE, scale = FALSE)
+
+# Moderator
+data$sta_centered <- scale(data$sta, center = TRUE, scale = FALSE)
+
+# Interaction term
+data$int_sta_interaction <- data$int_centered * data$sta_centered 
+
+
+model <- '
+  # Direct effects
+  inf_sup ~ b1*int_centered + b2*sta_centered + b3*int_sta_interaction
+  ins_sup ~ b1*int_centered + b2*sta_centered + b3*int_sta_interaction
+  emo_sup ~ b1*int_centered + b2*sta_centered + b3*int_sta_interaction
+  
+  # Interaction term
+  interaction := b1 * b2
+'
+
+fit <- lavaan::sem(model, data = data, missing = "fiml")
+summary(fit, standardized = TRUE)
+
 model1 <- '# direct effect
            inf_sup ~ int + con
            ins_sup ~ int + con
@@ -476,6 +491,9 @@ model1 <- '# direct effect
            inf_sup ~ ang
            ins_sup ~ ang
            emo_sup ~ ang'
+
+model1 <- '# direct effect
+           emo_sup ~ int + sta + int:sta + con '
 
 fit1 <- lavaan::sem(model1, data = data, missing = "fiml")
 
@@ -591,15 +609,7 @@ barplot(as.matrix(tab2), main = "Vignette 2")
 barplot(as.matrix(tab3), main = "Vignette 3")
 ```
 
-## Next Steps
-
-- Nur mit Vignette 1 und 3 rechnen (?)
-- Positive Emotionen anschauen
-- Hätte es eine CFA sein sollen? Ich habe eine EFA gerechnet, weil ich mir ja Items ausgedacht habe und wissen wollte, welche davon die passenden sind.
-
 ## References
-
-- Correlation Matrix
 
 ::: {#refs}
 :::
