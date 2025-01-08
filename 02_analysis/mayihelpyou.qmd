@@ -317,8 +317,9 @@ data <- data %>%
 data$vig <- as.factor(data$vig)
 
 # Mentoring Experience (years)
-data <- data %>%
-  dplyr::mutate(exp_men = coalesce(BEKE2_KS, BEFA1_SQ002))
+# data <- data %>%
+#   dplyr::mutate(exp_men = 
+#                  dplyr::coalesce(BEKE2_KS, BEFA1_SQ002))
 
 # Sex
 data <- data %>%
@@ -461,7 +462,7 @@ data$conXint <- data$con_cntrd * data$int_cntrd
 data$intXsta <- data$int_cntrd * data$sta_cntrd 
 ```
 
-The high correlations between the support scales from the same source can lead to multicollinearity and suppression effects in structural equation models. To reduce these effects, different models were calculated for each kind of social support:
+The high correlations between the support scales can lead to multicollinearity and suppression effects in structural equation models. To reduce these effects, different models were calculated for each kind of social support:
 
 #### 3.3 Informational support
 
@@ -580,11 +581,6 @@ fit_ins_sup <- lavaan::sem(model = model_ins_sup,
                            meanstructure = TRUE)
 
 summary(fit_ins_sup, standardized = TRUE)
-```
-
-Model fit:
-```{r}
-fitMeasures(fit_ins_sup, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
 #### 3.5 Emotional support
@@ -728,6 +724,41 @@ tab3 <- data.frame(int = mean(data_vig3$int, na.rm = T),
 barplot(as.matrix(tab1), main = "Vignette 1")
 barplot(as.matrix(tab2), main = "Vignette 2")
 barplot(as.matrix(tab3), main = "Vignette 3")
+```
+
+*What reasons were given for the disruption to the lesson?*
+
+```{r}
+sorted_data <- data %>%
+  dplyr::select(vig, ursache) %>%
+   dplyr::arrange(vig)
+```
+
+Vignette 1:
+
+```{r}
+sorted_data_vig1 <- sorted_data %>%
+  dplyr::filter(vig == 1)
+
+print(sorted_data_vig1$ursache)
+```
+
+Vignette 2:
+
+```{r}
+sorted_data_vig2 <- sorted_data %>%
+  dplyr::filter(vig == 2)
+
+print(sorted_data_vig2$ursache)
+```
+
+Vignette 3:
+
+```{r}
+sorted_data_vig3 <- sorted_data %>%
+  dplyr::filter(vig == 3)
+
+print(sorted_data_vig3$ursache)
 ```
 
 ## References
