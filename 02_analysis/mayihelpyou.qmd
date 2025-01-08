@@ -1,6 +1,6 @@
 ---
 title: May I Help You?
-subtitle: Exploring Teacher Educators' Attributions of Failure, Self-Efficacy, and Social Support
+subtitle: Exploring Teacher Educators' Attributions of Failure, Self-Efficacy and Social Support
 title-block-banner: "#3459e6"
 author:
   - name: David Simon
@@ -27,7 +27,7 @@ format:
     toc-location: left
     toc-depth: 4
     embed-resources: true
-    code-fold: true
+    code-fold: false
     code-tools: true
     code-link: true
 csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
@@ -316,20 +316,21 @@ data <- data %>%
 
 data$vig <- as.factor(data$vig)
 
-# Mentoring Experience
+# Mentoring Experience (years)
 data <- data %>%
-  dplyr::mutate(exp_men = coalesce(BEKE2_KS == TRUE, BEKE2_KS, BEFA1_SQ002))
+  dplyr::mutate(exp_men = coalesce(BEKE2_KS, BEFA1_SQ002))
 
-
-# Experience as a Teacher
+# Sex
+data <- data %>%
+  dplyr::mutate(sex = ifelse(sex == 1, 1, 0)) # 1 = female, 0 = male
 
 ## Attribution 
 
 data <- data %>%
-  dplyr::mutate(int = int_1,  # internality
-                sta = sta_1,  # stability 
-                glo = glo_1,  # globality
-                con = kon_1)  # controllability
+  dplyr::mutate(int = int_1,  # Internality
+                sta = sta_1,  # Stability 
+                glo = glo_1,  # Globality
+                con = kon_1)  # Controllability
 
 ## Affect 
 
@@ -423,142 +424,262 @@ adapted from [@tickell2024developing]
 
 ### 3 Results
 
-#### 3.1 Attributional Theory
-
-Weiner (1985) identified three causal dimensions.  
-
-One dimension of causes is their *locus*, or location within or outside of the actor (locus of control). Ability and effort are similar in locus, both being internal to the actor. In addition, they differ from causes such as chance or task difficulty, which are considered to be located in the environment, external to the actor.  
-
-A second dimension of causes is *stability*, which depicts a cause as constant or changing over time. Some causes, including ability, are viewed as stable over time. On the other hand, chance or luck fluctuates over time and is therefore unstable. Effort also is typically regarded as unstable, although labeling oneself or others as lazy or industrious implies stability in effort expenditure. 
-
-The third known causal dimension is *controllability*, or whether a cause is subject to volitional influence. Attribution theorists have proposed that ability, although internal to the person, is not subject to volitional control and change, whereas effort expenditure is considered amenable to personal control – “it could be otherwise”.
-
-Zitiert nach [@graham2020attributional]
-
-The *locus of control* dimension is particularly relevant to emotional reactions. Internal attributions for undesirable events or behaviors are frequently associated with self-focused negative emotions, such as guilt and shame. External attributions for the same behaviors and outcomes are generally associated with externally focused negative emotions, such as anger and resentment.
-
-Zitiert nach [@weiner1985attributional]
-
-Was würde das für die SAB bedeuten: Liegt die Ursache in der LAA, dann liegt es nicht an ihnen und sie reagieren ärgerlich - "die LAA sollen gefälligst liefern". (?)
-
-Ähnliche Effekte gibt es in Bezug auf "controllability" wie folgt:
-
-In her earlier paper, Graham (1984) claimed that affect is the mediator between perceptions of *controllability* and subsequent helping behavior. As she explained, perceived uncontrollability gives rise to sympathy, which in turn promotes the commitment to help. In contrast, “perceived controllability elicits anger, and anger then leads to the withholding of help” Graham (1984)
-
-Graham (1990) suggested that failing students gain information about the causes of their failure from the affective displays of teachers. This attributional information may sometimes be quite direct, but at other times it may be “subtly, indirectly, and even unknowingly conveyed” (p. 18). Referring to the findings of a series of studies, the same author claimed that communication of pity and the offering of unsolicited help to the student might function as low-ability or even incompetence cues. On the other hand, when failure is attributed to insufficient effort, the attributional message communicated to the student by the teacher’s anger may have positive consequences.
-
-A study among Israeli primary school teachers (Butler, 1994) supported Graham’s findings. In this study it was found that teachers were more likely to respond to the low-effort students with anger and demands for better work and to the low-ability students with pity and offers of help.
-
-Zitiert nach [@georgiou2002teacher]
-
 - H1a: Controllability predicts witholding of help
 - H1b: Internality predicts witholding of help
 - H1c: The effect of internality on withholding help is moderated by stability, such that internality predicts withholding help more strongly when stability is low
 - H1d: The relationships are mediated by anger
 
+#### 3.1 Correlation matrix
 ```{r}
-# mean center variables
-
-# Independent
-data$int_centered <- scale(data$int, center = TRUE, scale = FALSE)
-
-# Moderator
-data$sta_centered <- scale(data$sta, center = TRUE, scale = FALSE)
-
-# Interaction term
-data$int_sta_interaction <- data$int_centered * data$sta_centered 
+# tbc
+```
 
 
-model <- '
-  # Direct effects
-  inf_sup ~ b1*int_centered + b2*sta_centered + b3*int_sta_interaction
-  ins_sup ~ b1*int_centered + b2*sta_centered + b3*int_sta_interaction
-  emo_sup ~ b1*int_centered + b2*sta_centered + b3*int_sta_interaction
+#### 3.2 Preliminaries
+
+Only include data, that participated in the vignette experiment:
+```{r}
+data <- data %>%
+  dplyr::filter(vig == 1 | vig == 2 | vig == 3) 
+```
+
+Test for normality, etc.
+```{r}
+# tbc
+```
+
+and independent variables were mean centered, before the interaction terms were calculated:
+
+```{r}
+# mean center independent variables
+data$int_cntrd <- scale(data$int, center = TRUE, scale = FALSE)
+data$sta_cntrd <- scale(data$sta, center = TRUE, scale = FALSE)
+data$con_cntrd <- scale(data$con, center = TRUE, scale = FALSE)
+
+# Interaction terms
+data$conXint <- data$con_cntrd * data$int_cntrd 
+data$intXsta <- data$int_cntrd * data$sta_cntrd 
+```
+
+The high correlations between the support scales from the same source can lead to multicollinearity and suppression effects in structural equation models. To reduce these effects, different models were calculated for each kind of social support:
+
+#### 3.3 Informational support
+
+```{r}
+model_inf_sup <- '
+  # Mesurement models
   
-  # Interaction term
-  interaction := b1 * b2
+  # Measurement model: Informational support
+  inf_support =~ sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + sozunt_inf5
+  
+  # Measurement model: Self-efficacy
+  # Pedagogical practices
+  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
+                seffsab_47 + seffsab_4
+                     
+  # Professional relationships                 
+  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                seffsab_9
+  
+  # Structural model
+  
+  # Direct effects
+  inf_support ~ c1*int_cntrd + c2*sta_cntrd + c3*con_cntrd + c4*conXint + c5*intXsta
+  
+  # Mediator
+  ang ~ a1*int_cntrd
+  ang ~ a2*sta_cntrd
+  ang ~ a3*con_cntrd
+  ang ~ a4*conXint
+  ang ~ a5*intXsta
+  
+  inf_support ~ b*ang
+  
+  # Indirect effect
+  ie_conXint := a4*c4
+  ie_intXsta := a5*c5
+  
+  # Total effect
+  te_conXint := b + (a4*c4)
+  te_intXsta := b + (a5*c5)
+  
+  # Effect of self-efficacy
+  inf_support ~ sef_pdggcl
+  inf_support ~ sef_rltnsh
 '
 
-fit <- lavaan::sem(model, data = data, missing = "fiml")
-summary(fit, standardized = TRUE)
+fit_inf_sup <- lavaan::sem(model = model_inf_sup, 
+                           data = data, 
+                           missing = "ML",
+#                           cluster = "vig",
+                           se = "robust",
+                           meanstructure = TRUE)
 
-model1 <- '# direct effect
-           inf_sup ~ int + con
-           ins_sup ~ int + con
-           emo_sup ~ int + con 
-           # mediators
-           ang ~ int + con
-           inf_sup ~ ang
-           ins_sup ~ ang
-           emo_sup ~ ang'
-
-model1 <- '# direct effect
-           emo_sup ~ int + sta + int:sta + con '
-
-fit1 <- lavaan::sem(model1, data = data, missing = "fiml")
-
-summary(fit1)
+summary(fit_inf_sup, standardized = TRUE)
 ```
 
-#### 3.2 Self Efficacy
+Model fit:
+```{r}
+fitMeasures(fit_inf_sup, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
 
-Mentors with high levels of efficacy might believe that they could control teacher students achievement and motivation. Thus, mentors with high sense of efficacy are more willing to take responsibility for failures and are more likely to assist low achieving teacher students during failure situations.
+#### 3.4 Instrumental support
 
-- H2: Mentors with high level of efficacy perceive the situation as more controllable (Controllability)
-- H3: Relationship Self-Efficacy positively predicts the provision of social support
-
-(?)
-
-- H2b: Mentors with high level of efficacy perceive the situation as externally caused (Internality = Locus of Control)
-- vielleicht: H2c: Mentors with high level of efficacy perceive the situation as unstable (Stability)
+Model did not converge
 
 ```{r}
-model2 <- 'inf_sup ~ seff_f2 + seff_f1
-           ins_sup ~ seff_f2 + seff_f1
-           emo_sup ~ seff_f2 + seff_f1
+model_ins_sup <- '
+  # Mesurement models
+  
+  # Measurement model: Informational support
+  ins_support =~ sozunt_ins1 + sozunt_ins5
+  
+  # Measurement model: Self-efficacy
+  # Pedagogical practices
+  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
+                seffsab_47 + seffsab_4
+                     
+  # Professional relationships                 
+  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                seffsab_9
+  
+  # Structural model
+  
+  # Direct effects
+  ins_support ~ c1*int_cntrd + c2*sta_cntrd + c3*con_cntrd + c4*conXint + c5*intXsta
+  
+  # Mediator
+  ang ~ a1*int_cntrd
+  ang ~ a2*sta_cntrd
+  ang ~ a3*con_cntrd
+  ang ~ a4*conXint
+  ang ~ a5*intXsta
+  
+  ins_support ~ b*ang
+  
+  # Indirect effect
+  ie_conXint := a4*c4
+  ie_intXsta := a5*c5
+  
+  # Total effect
+  te_conXint := b + (a4*c4)
+  te_intXsta := b + (a5*c5)
+  
+  # Effect of self-efficacy
+  ins_support ~ sef_pdggcl
+  ins_support ~ sef_rltnsh
+'
 
-           con ~ seff_f2 + seff_f1'
+fit_ins_sup <- lavaan::sem(model = model_ins_sup, 
+                           data = data, 
+                           missing = "ML",
+#                           cluster = "vig",
+                           se = "robust",
+                           meanstructure = TRUE)
 
-fit2 <- lavaan::sem(model2, data = data, missing = "fiml")
-
-summary(fit2)
+summary(fit_ins_sup, standardized = TRUE)
 ```
 
-#### 3.3 Both
+Model fit:
+```{r}
+fitMeasures(fit_ins_sup, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
+
+#### 3.5 Emotional support
 
 ```{r}
-model3 <- '# direct effect
-           inf_sup ~ int + con + seff_f2 + seff_f1
-           ins_sup ~ int + con + seff_f2 + seff_f1
-           emo_sup ~ int + con + seff_f2 + seff_f1
-           # mediators
-           ang ~ int + con
-           inf_sup ~ ang
-           ins_sup ~ ang
-           emo_sup ~ ang
-           # else
-           con ~ seff_f2 + seff_f1'
+model_emo_sup <- '
+  # Mesurement models
+  
+  # Measurement model: Informational support
+  emo_support =~ sozunt_emo2 + sozunt_emo3+ sozunt_emo4
+  
+  # Measurement model: Self-efficacy
+  # Pedagogical practices
+  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
+                seffsab_47 + seffsab_4
+                     
+  # Professional relationships                 
+  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                seffsab_9
+  
+  # Structural model
+  
+  # Direct effects
+  emo_support ~ c1*int_cntrd + c2*sta_cntrd + c3*con_cntrd + c4*conXint + c5*intXsta
+  
+  # Mediator
+  ang ~ a1*int_cntrd
+  ang ~ a2*sta_cntrd
+  ang ~ a3*con_cntrd
+  ang ~ a4*conXint
+  ang ~ a5*intXsta
+  
+  emo_support ~ b*ang
+  
+  # Indirect effect
+  ie_conXint := a4*c4
+  ie_intXsta := a5*c5
+  
+  # Total effect
+  te_conXint := b + (a4*c4)
+  te_intXsta := b + (a5*c5)
+  
+  # Effect of self-efficacy
+  emo_support ~ sef_pdggcl
+  emo_support ~ sef_rltnsh
+'
 
-fit3 <- lavaan::sem(model3, data = data, missing = "fiml")
+fit_emo_sup <- lavaan::sem(model = model_emo_sup, 
+                           data = data, 
+                           missing = "ML",
+#                           cluster = "vig",
+                           se = "robust",
+                           meanstructure = TRUE)
 
-summary(fit3)
-
-# CFI cut-off: .95; SRMR cut-off: .09
-fitMeasures(fit3, c("chisq", "df", "pvalue", "cfi","srmr"))
+summary(fit_emo_sup, standardized = TRUE)
 ```
+
+Model fit:
+```{r}
+fitMeasures(fit_emo_sup, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
+
+#### 3.6 Exploration
 
 *Might there be a relationship between emotions and self-efficacy?*
 
-```{r}
-model4 <- 'ang ~ seff_f2 + seff_f1
-           gui ~ seff_f2 + seff_f1
-           sha ~ seff_f2 + seff_f1'
+No:
 
-fit4 <- lavaan::sem(model4, data = data, missing = "fiml")
-summary(fit4)
+```{r}
+model <- '
+  # Measurement model: Self-efficacy
+  # Pedagogical practices
+  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
+                seffsab_47 + seffsab_4
+                     
+  # Professional relationships                 
+  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                seffsab_9
+
+  ang ~ sef_pdggcl + sef_rltnsh
+  gui ~ sef_pdggcl + sef_rltnsh
+  sha ~ sef_pdggcl + sef_rltnsh
+'
+
+fit <- lavaan::sem(model, data = data, missing = "ml")
+summary(fit, standardized = TRUE)
 ```
 
-#### 3.4 Descriptives: Vignettes
+Model fit:
+```{r}
+fitMeasures(fit, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
+#### 3.7 Descriptives: Vignettes
 
 *Were the situations perceived as a failure?*
 
