@@ -27,7 +27,7 @@ format:
     toc-location: left
     toc-depth: 4
     embed-resources: true
-    code-fold: false
+    code-fold: true
     code-tools: true
     code-link: true
 csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
@@ -42,6 +42,8 @@ p {
 ```
 
 ## Information
+
+Unfold code to see information:
 
 ```{r}
 # Input: b_sab_mzp2_2024_R_data_file.csv
@@ -72,7 +74,7 @@ data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 ### 2 Measures
 
 #### 2.1 Exploratory Factor Analysis (EFA): Social Support Scales  
-The items measuring social support were taken from Richter at al. [-@richter2011soziale] and Schulz and Schwarzer [-@BSS]. We adapted them to the educators' perspective (Provider). Items were added to each facet according to our theoretical understanding of social support. An EFA was calculated to determine which items represented the three facets of social support best.
+The items measuring social support were taken from Richter at al. [-@richter2011soziale] and Schulz and Schwarzer [-@BSS]. We adapted them to the educators' perspective (provider). Items were added to each facet according to our theoretical understanding of social support. An EFA was calculated to determine which items represented the three facets of social support best.
 
 ##### Dataevaluation
 
@@ -256,10 +258,15 @@ sef_rel_alpha <- data %>%
   psych::alpha(title = "sef_rel_alpha")
 ```
 
-We were interested whether reliability improves if an item is dropped and if that might as well improve model fit. Alpha could not be improved in case of *Professional Relationships* nor *Relationships*: 
+We were particularly interested whether reliability improves if an item is dropped and if that might as well improve model fit. Alpha could not be improved in case of *Professional Relationships*... 
 
 ```{r}
 sef_pea_alpha$alpha.drop[1:2]
+```
+
+nor *Relationships*:
+
+```{r}
 sef_rel_alpha$alpha.drop[1:2]
 ```
 
@@ -302,6 +309,8 @@ Although the model fit was not as good as desired, we considered it to be suffic
 
 #### 2.3 Compute Scale Scores
 
+Unfold code to see scale construction:
+
 ```{r}
 # Factor vignette, dummy for each vignette
 data <- data %>%
@@ -316,14 +325,6 @@ data <- data %>%
 
 data$vig <- as.factor(data$vig)
 
-# Mentoring Experience (years)
-# data <- data %>%
-#   dplyr::mutate(exp_men = 
-#                  dplyr::coalesce(BEKE2_KS, BEFA1_SQ002))
-
-# Sex
-data <- data %>%
-  dplyr::mutate(sex = ifelse(sex == 1, 1, 0)) # 1 = female, 0 = male
 
 ## Attribution 
 
@@ -368,7 +369,7 @@ data <- data %>%
                                                            sozunt_emo4)),
                                    na.rm = TRUE),
                 
-## Instrumental support               
+# Instrumental support               
                 ins_sup = rowMeans(subset(data, select = c(sozunt_ins1, 
                                                            sozunt_ins5)),
                                  na.rm = TRUE))
@@ -449,13 +450,13 @@ Test for normality, etc.
 # tbc
 ```
 
-and independent variables were mean centered, before the interaction terms were calculated:
+Independent variables were mean centered, before the interaction terms were calculated:
 
 ```{r}
 # mean center independent variables
-data$int_cntrd <- scale(data$int, center = TRUE, scale = FALSE)
-data$sta_cntrd <- scale(data$sta, center = TRUE, scale = FALSE)
-data$con_cntrd <- scale(data$con, center = TRUE, scale = FALSE)
+data$int_cntrd <- scale(data$int, center = TRUE, scale = TRUE)
+data$sta_cntrd <- scale(data$sta, center = TRUE, scale = TRUE)
+data$con_cntrd <- scale(data$con, center = TRUE, scale = TRUE)
 
 # Interaction terms
 data$conXint <- data$con_cntrd * data$int_cntrd 
@@ -468,20 +469,10 @@ The high correlations between the support scales can lead to multicollinearity a
 
 ```{r}
 model_inf_sup <- '
-  # Mesurement models
+  # Mesurement model
   
   # Measurement model: Informational support
   inf_support =~ sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + sozunt_inf5
-  
-  # Measurement model: Self-efficacy
-  # Pedagogical practices
-  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
-                seffsab_47 + seffsab_4
-                     
-  # Professional relationships                 
-  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
-                seffsab_9
   
   # Structural model
   
@@ -489,11 +480,7 @@ model_inf_sup <- '
   inf_support ~ c1*int_cntrd + c2*sta_cntrd + c3*con_cntrd + c4*conXint + c5*intXsta
   
   # Mediator
-  ang ~ a1*int_cntrd
-  ang ~ a2*sta_cntrd
-  ang ~ a3*con_cntrd
-  ang ~ a4*conXint
-  ang ~ a5*intXsta
+  ang ~ a1*int_cntrd + a2*sta_cntrd + a3*con_cntrd + a4*conXint + a5*intXsta
   
   inf_support ~ b*ang
   
@@ -506,14 +493,24 @@ model_inf_sup <- '
   te_intXsta := b + (a5*c5)
   
   # Effect of self-efficacy
-  inf_support ~ sef_pdggcl
-  inf_support ~ sef_rltnsh
+  inf_support ~ sef_pea
+  inf_support ~ sef_rel
+  
+  # Simple Slopes: X at designated levels of Z
+  Int_High := c3+c4*1     # high int: +1 SD
+  Int_Mod := c3+c4*0      # at the mean of (centered) int
+  Int_Low := c3+c4*(-1)   # low int: -1 SD
+    
+  Sta_High := c1+c5*1     # high sta: +1 SD
+  Sta_Mod := c1+c5*0      # at the mean of (centered) sta
+  Sta_Low := c1+c5*(-1)   # low sta: -1 SD
 '
 
 fit_inf_sup <- lavaan::sem(model = model_inf_sup, 
                            data = data, 
+                           estimator = "MLR",
                            missing = "ML",
-#                           cluster = "vig",
+                           cluster = "vig", # leads to warning: vcov does not appear to be positive definite!
                            se = "robust",
                            meanstructure = TRUE)
 
@@ -531,20 +528,10 @@ Model did not converge
 
 ```{r}
 model_ins_sup <- '
-  # Mesurement models
+  # Mesurement model
   
-  # Measurement model: Informational support
+  # Measurement model: Instrumental support
   ins_support =~ sozunt_ins1 + sozunt_ins5
-  
-  # Measurement model: Self-efficacy
-  # Pedagogical practices
-  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
-                seffsab_47 + seffsab_4
-                     
-  # Professional relationships                 
-  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
-                seffsab_9
   
   # Structural model
   
@@ -552,11 +539,7 @@ model_ins_sup <- '
   ins_support ~ c1*int_cntrd + c2*sta_cntrd + c3*con_cntrd + c4*conXint + c5*intXsta
   
   # Mediator
-  ang ~ a1*int_cntrd
-  ang ~ a2*sta_cntrd
-  ang ~ a3*con_cntrd
-  ang ~ a4*conXint
-  ang ~ a5*intXsta
+  ang ~ a1*int_cntrd + a2*sta_cntrd + a3*con_cntrd + a4*conXint + a5*intXsta
   
   ins_support ~ b*ang
   
@@ -569,38 +552,37 @@ model_ins_sup <- '
   te_intXsta := b + (a5*c5)
   
   # Effect of self-efficacy
-  ins_support ~ sef_pdggcl
-  ins_support ~ sef_rltnsh
+  ins_support ~ sef_pea
+  ins_support ~ sef_rel
+  
+  # Simple Slopes: X at designated levels of Z
+  Int_High := c3+c4*1     # high int: +1 SD
+  Int_Mod := c3+c4*0      # at the mean of (centered) int
+  Int_Low := c3+c4*(-1)   # low int: -1 SD
+    
+  Sta_High := c1+c5*1     # high sta: +1 SD
+  Sta_Mod := c1+c5*0      # at the mean of (centered) sta
+  Sta_Low := c1+c5*(-1)   # low sta: -1 SD
 '
 
 fit_ins_sup <- lavaan::sem(model = model_ins_sup, 
                            data = data, 
                            missing = "ML",
-#                           cluster = "vig",
+                           cluster = "vig",
                            se = "robust",
                            meanstructure = TRUE)
 
-summary(fit_ins_sup, standardized = TRUE)
+# summary(fit_ins_sup, standardized = TRUE)
 ```
 
 #### 3.5 Emotional support
 
 ```{r}
 model_emo_sup <- '
-  # Mesurement models
+  # Mesurement model
   
-  # Measurement model: Informational support
-  emo_support =~ sozunt_emo2 + sozunt_emo3+ sozunt_emo4
-  
-  # Measurement model: Self-efficacy
-  # Pedagogical practices
-  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
-                seffsab_47 + seffsab_4
-                     
-  # Professional relationships                 
-  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
-                seffsab_9
+  # Measurement model: Emotional support
+  emo_support =~ sozunt_emo2 + sozunt_emo3 + sozunt_emo4
   
   # Structural model
   
@@ -608,11 +590,7 @@ model_emo_sup <- '
   emo_support ~ c1*int_cntrd + c2*sta_cntrd + c3*con_cntrd + c4*conXint + c5*intXsta
   
   # Mediator
-  ang ~ a1*int_cntrd
-  ang ~ a2*sta_cntrd
-  ang ~ a3*con_cntrd
-  ang ~ a4*conXint
-  ang ~ a5*intXsta
+  ang ~ a1*int_cntrd + a2*sta_cntrd + a3*con_cntrd + a4*conXint + a5*intXsta
   
   emo_support ~ b*ang
   
@@ -625,14 +603,23 @@ model_emo_sup <- '
   te_intXsta := b + (a5*c5)
   
   # Effect of self-efficacy
-  emo_support ~ sef_pdggcl
-  emo_support ~ sef_rltnsh
+  emo_support ~ sef_pea
+  emo_support ~ sef_rel
+  
+  # Simple Slopes: X at designated levels of Z
+  Int_High := c3+c4*1     # high int: +1 SD
+  Int_Mod := c3+c4*0      # at the mean of (centered) int
+  Int_Low := c3+c4*(-1)   # low int: -1 SD
+    
+  Sta_High := c1+c5*1     # high sta: +1 SD
+  Sta_Mod := c1+c5*0      # at the mean of (centered) sta
+  Sta_Low := c1+c5*(-1)   # low sta: -1 SD
 '
 
 fit_emo_sup <- lavaan::sem(model = model_emo_sup, 
                            data = data, 
                            missing = "ML",
-#                           cluster = "vig",
+                           cluster = "vig",
                            se = "robust",
                            meanstructure = TRUE)
 
@@ -646,35 +633,17 @@ fitMeasures(fit_emo_sup, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 
 #### 3.6 Exploration
 
-*Might there be a relationship between emotions and self-efficacy?*
+*Might there be a relationship between anger and self-efficacy?*
 
-No:
+Yes:
 
 ```{r}
-model <- '
-  # Measurement model: Self-efficacy
-  # Pedagogical practices
-  sef_pdggcl =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
-                seffsab_47 + seffsab_4
-                     
-  # Professional relationships                 
-  sef_rltnsh =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
-                seffsab_9
-
-  ang ~ sef_pdggcl + sef_rltnsh
-  gui ~ sef_pdggcl + sef_rltnsh
-  sha ~ sef_pdggcl + sef_rltnsh
-'
-
-fit <- lavaan::sem(model, data = data, missing = "ml")
-summary(fit, standardized = TRUE)
+model <- lm(ang ~ sef_rel + sef_pea, data = data)
+summary(model, standardized = TRUE)
 ```
 
-Model fit:
-```{r}
-fitMeasures(fit, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
-```
+- Vielleicht können wir uns noch anschauen, wie sich die SE auf das Wohlbefinden auswirkt, angeregt durch den Befund, dass die SAB hier in Abhängigkeit ihrer SE negativere Emotionen haben.
+
 #### 3.7 Descriptives: Vignettes
 
 *Were the situations perceived as a failure?*
@@ -706,27 +675,27 @@ barplot(tab3, main = "Vignette 3")
 *Were the situations cause equally attributed?*
 
 ```{r}
-tab1 <- data.frame(int = mean(data_vig1$int, na.rm = T),
-                   sta = mean(data_vig1$sta, na.rm = T),
-                   glo = mean(data_vig1$glo, na.rm = T),
-                   con = mean(data_vig1$con, na.rm = T))
+tab4 <- data.frame(int = mean(data_vig1$int, na.rm = TRUE),
+                   sta = mean(data_vig1$sta, na.rm = TRUE),
+                   glo = mean(data_vig1$glo, na.rm = TRUE),
+                   con = mean(data_vig1$con, na.rm = TRUE))
 
-tab2 <- data.frame(int = mean(data_vig2$int, na.rm = T),
-                   sta = mean(data_vig2$sta, na.rm = T),
-                   glo = mean(data_vig2$glo, na.rm = T),
-                   con = mean(data_vig2$con, na.rm = T))
+tab5 <- data.frame(int = mean(data_vig2$int, na.rm = TRUE),
+                   sta = mean(data_vig2$sta, na.rm = TRUE),
+                   glo = mean(data_vig2$glo, na.rm = TRUE),
+                   con = mean(data_vig2$con, na.rm = TRUE))
 
-tab3 <- data.frame(int = mean(data_vig3$int, na.rm = T),
-                   sta = mean(data_vig3$sta, na.rm = T),
-                   glo = mean(data_vig3$glo, na.rm = T),
-                   con = mean(data_vig3$con, na.rm = T))
+tab6 <- data.frame(int = mean(data_vig3$int, na.rm = TRUE),
+                   sta = mean(data_vig3$sta, na.rm = TRUE),
+                   glo = mean(data_vig3$glo, na.rm = TRUE),
+                   con = mean(data_vig3$con, na.rm = TRUE))
 
-barplot(as.matrix(tab1), main = "Vignette 1")
-barplot(as.matrix(tab2), main = "Vignette 2")
-barplot(as.matrix(tab3), main = "Vignette 3")
+barplot(as.matrix(tab4), main = "Vignette 1")
+barplot(as.matrix(tab5), main = "Vignette 2")
+barplot(as.matrix(tab6), main = "Vignette 3")
 ```
 
-*What reasons were given for the disruption to the lesson?*
+*What reasons were given for the situation?*
 
 ```{r}
 sorted_data <- data %>%
@@ -734,7 +703,7 @@ sorted_data <- data %>%
    dplyr::arrange(vig)
 ```
 
-Vignette 1:
+Vignette 1: "General turbulence among students"
 
 ```{r}
 sorted_data_vig1 <- sorted_data %>%
@@ -743,7 +712,7 @@ sorted_data_vig1 <- sorted_data %>%
 print(sorted_data_vig1$ursache)
 ```
 
-Vignette 2:
+Vignette 2: "Only a third work"
 
 ```{r}
 sorted_data_vig2 <- sorted_data %>%
@@ -752,7 +721,7 @@ sorted_data_vig2 <- sorted_data %>%
 print(sorted_data_vig2$ursache)
 ```
 
-Vignette 3:
+Vignette 3: "Refusal to change seats"
 
 ```{r}
 sorted_data_vig3 <- sorted_data %>%
