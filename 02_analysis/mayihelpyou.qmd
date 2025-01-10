@@ -496,11 +496,13 @@ model_inf_sup <- '
   inf_support ~ sef_pea
   inf_support ~ sef_rel
   
-  # Simple Slopes: X at designated levels of Z
+  # Simple Slopes: 
+  # Con at designated levels of Int:
   Int_High := c3+c4*1     # high int: +1 SD
   Int_Mod := c3+c4*0      # at the mean of (centered) int
   Int_Low := c3+c4*(-1)   # low int: -1 SD
-    
+  
+  # Int at designated levels of Sta : 
   Sta_High := c1+c5*1     # high sta: +1 SD
   Sta_Mod := c1+c5*0      # at the mean of (centered) sta
   Sta_Low := c1+c5*(-1)   # low sta: -1 SD
@@ -555,11 +557,13 @@ model_ins_sup <- '
   ins_support ~ sef_pea
   ins_support ~ sef_rel
   
-  # Simple Slopes: X at designated levels of Z
+  # Simple Slopes: 
+  # Con at designated levels of Int:
   Int_High := c3+c4*1     # high int: +1 SD
   Int_Mod := c3+c4*0      # at the mean of (centered) int
   Int_Low := c3+c4*(-1)   # low int: -1 SD
-    
+  
+  # Int at designated levels of Sta : 
   Sta_High := c1+c5*1     # high sta: +1 SD
   Sta_Mod := c1+c5*0      # at the mean of (centered) sta
   Sta_Low := c1+c5*(-1)   # low sta: -1 SD
@@ -606,11 +610,13 @@ model_emo_sup <- '
   emo_support ~ sef_pea
   emo_support ~ sef_rel
   
-  # Simple Slopes: X at designated levels of Z
+  # Simple Slopes: 
+  # Con at designated levels of Int:
   Int_High := c3+c4*1     # high int: +1 SD
   Int_Mod := c3+c4*0      # at the mean of (centered) int
   Int_Low := c3+c4*(-1)   # low int: -1 SD
-    
+  
+  # Int at designated levels of Sta : 
   Sta_High := c1+c5*1     # high sta: +1 SD
   Sta_Mod := c1+c5*0      # at the mean of (centered) sta
   Sta_Low := c1+c5*(-1)   # low sta: -1 SD
