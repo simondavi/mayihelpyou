@@ -73,123 +73,89 @@ data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
 
 ### 2 Measures
 
-#### 2.1 Exploratory Factor Analysis (EFA): Social Support Scales  
-The items measuring social support were taken from Richter at al. [-@richter2011soziale] and Schulz and Schwarzer [-@BSS]. We adapted them to the educators' perspective (provider). Items were added to each facet according to our theoretical understanding of social support. An EFA was calculated to determine which items represented the three facets of social support best.
+#### 2.1 Confirmatory  Factor Analysis (CFA): Social Support Scales  
+Items measuring social supports were developed aligning with Richter at al. [-@richter2011soziale], Schulz and Schwarzer [-@BSS] and our theoretical understanding of social support. We adapted the perspective to that of the educators (social support providers). Five items were created for each dimension of social support. The factorial structure of three dimensions was tested calculating a confirmatory factor analysis. 
 
-##### Dataevaluation
-
-Data for EFA:
+Data for CFA:
 
 ```{r}
-data_efa <- data %>%
+data_cfa_1 <- data %>%
   dplyr::select(sozunt_ins5:sozunt_ins2)
 ```
 
-*Kaiser–Meyer–Olkin (KMO) Test:*
-
-- 0.00 - 0.49: Unacceptable
-- 0.50 - 0.59: Miserable
-- 0.60 - 0.69: Mediocre
-- 0.70 - 0.79: Middling
-- 0.80 - 0.89: Meritorious
-- 0.90 - 1.00: Marvelous
+*Step 1: Fitting a Three-factor Model*
 
 ```{r}
-psych::KMO(data_efa)
+# specify the model
+cfa_model_ss <- ' inf =~ sozunt_inf1 + sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + 
+                         sozunt_inf5
+                  emo =~ sozunt_emo1 + sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + 
+                         sozunt_emo5
+                  ins =~ sozunt_ins1 + sozunt_ins2 + sozunt_ins3 + sozunt_ins4 + 
+                         sozunt_ins5 '
+
+# fit the model
+fit_cfa_ss <- lavaan::cfa(cfa_model_ss, data = data_cfa_1)
+
+# evaluate the model
+summary(fit_cfa_ss, standardized = TRUE)
 ```
 
-Deletion of item `sozunt_ins4`, who failed the KMO test (< 0.50):
+Model fit was poor:
 
 ```{r}
-data_efa <- data_efa %>%
-  dplyr::select(-sozunt_ins4)
+# CFI cut-off: .95; SRMR cut-off: .09
+lavaan::fitMeasures(fit_cfa_ss, c("chisq", "df", "pvalue", "cfi", "srmr"))
 ```
+Since no items loaded significantly on the instrumental support factor `ins`, we discarded these items and fitted a two-factor model distinguishing between emotional and informational support:
 
-*Bartlett Test of Sphericity:*
+*Step 2: Fitting a Two-factor Model*
 
 ```{r}
-psych::cortest.bartlett(data_efa)$p.value
+# specify the model
+cfa_model_ss_2 <- ' inf =~ sozunt_inf1 + sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + 
+                           sozunt_inf5
+                    emo =~ sozunt_emo1 + sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + 
+                           sozunt_emo5 '
+
+# fit the model
+fit_cfa_ss_2 <- lavaan::cfa(cfa_model_ss_2, data = data_cfa_1)
 ```
 
-##### Exploratory Factor Analysis
-
-*Step 1: Plausibility of a three factor solution*
-
-Get Eigenvalues:
+Model fit was still poor:
 
 ```{r}
-eig <- eigen(cor(data_efa, use = "complete.obs")) # get eigenvalues
-eig$values
+# CFI cut-off: .95; SRMR cut-off: .09
+lavaan::fitMeasures(fit_cfa_ss_2, c("chisq", "df", "pvalue", "cfi", "srmr"))
 ```
 
-Show scree plot:
+Evaluation of factor loading:
 
 ```{r}
-psych::scree(data_efa, pc = FALSE)  # plot scree plot 
+inspect_fit_cfa_ss_2 <- lavaan::inspect(fit_cfa_ss_2, what = "std")
+inspect_fit_cfa_ss_2$lambda
 ```
 
-The eigenvalue method (“Kaiser’s rule”) suggested four factors. The scree plot suggested two factors. In line with our theoretical understanding of the construct we started with three factors first, assuming correlated factors: 
-
-*Step 2: Factor extraction*
+We discarded the items `sozunt_inf1` and `sozunt_emo1` (factor loading < .45) and reran the CFA:
 
 ```{r}
-efa <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin")
-loadings <- efa$loadings
-loadings
+# specify the model
+cfa_model_ss_3 <- ' inf =~ sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + 
+                           sozunt_inf5
+                    emo =~ sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + 
+                           sozunt_emo5 '
+
+# fit the model
+fit_cfa_ss_3 <- lavaan::cfa(cfa_model_ss_3, data = data_cfa_1)
 ```
 
-*Step 3: Item removal*
-
-Only variables with loadings of .32 and above were interpreted as suggested as a first rule of thumb by Tabachnick and Fidell [-@tabachnick2001using]. 
-
-Consequently `sozunt_emo1`, `sozunt_ins3` and `sozunt_ins2` were not further considered:
+Model fit was close to meeting the desired criteria:
 
 ```{r}
-data_efa <- data_efa %>%
-  dplyr::select(-sozunt_emo1, -sozunt_ins3, -sozunt_ins2)
+# CFI cut-off: .95; SRMR cut-off: .09
+lavaan::fitMeasures(fit_cfa_ss_3, c("chisq", "df", "pvalue", "cfi", "srmr"))
 ```
-
-The EFA was repeated:
-
-```{r}
-efa <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin")
-loadings <- efa$loadings
-loadings
-```
-
-*Step 4: Interpretation of factors*  
-
-Factors were interpreted given the intended theoretical assignment of items to factors and a final cut of .45 regarding the loadings, which equals a 20% variance overlap between variable and factor and was characterised as "fair" by Comray [-@Comrey1962] and examplified in Tabachnick and Fidell [-@tabachnick2001using]. 
-
-This resulted in the following three factors, which correspond to the three facets of social support:
-
-- Factor 1: Informational support ("Tips and advice") was best represented through the items `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and  `sozunt_inf5`,
-
-- Factor 2: Emotional support ("Comfort and nearness") was best represented through the items `sozunt_emo2`, `sozunt_emo3` and `sozunt_emo4`.
-
-- Factor 3: Instrumental support ("Goods and materials") was best represented through the items `sozunt_ins1` and `sozunt_ins5`,
-
-Adjustment of data accordingly:
-
-```{r}
-data_efa <- data_efa %>%
-  dplyr::select(sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5,
-                sozunt_emo2, sozunt_emo3, sozunt_emo4,
-                sozunt_ins1, sozunt_ins5)
-```
-
-*Step 5: Final solution*
-
-```{r}
-efa <- psych::fa(data_efa, nfactors = 3, rotate = "oblimin")
-loadings <- efa$loadings
-loadings
-psych::fa.diagram(loadings)
-```
-
-`sozunt_inf2` does not meet the cutoff criterion anymore. Since the deviation is small, we kept it and would only discard it, if reliability could be improved by dropping it, which was not the case: 
-
-*Step 6: Evaluate Reliability*
+*Step 3: Evaluating Reliability*
 
 ```{r}
 inf_sup_alpha <- data %>% 
@@ -197,60 +163,102 @@ inf_sup_alpha <- data %>%
   psych::alpha(title = "sozunt_inf")
 
 emo_sup_alpha <- data %>%  
-  dplyr::select(sozunt_emo2, sozunt_emo3, sozunt_emo4) %>%
+  dplyr::select(sozunt_emo2, sozunt_emo3, sozunt_emo4, sozunt_emo5) %>%
   psych::alpha(title = "sozunt_emo")
-
-ins_sup_alpha <- data %>% 
-  dplyr::select(sozunt_ins1, sozunt_ins5) %>%
-  psych::alpha(title = "sozunt_ins")
 ```
 
-- Alpha informational support: `r inf_sup_alpha$total$std.alpha`
+We were interested whether reliability improves if an item is dropped and if that might as well further improve model fit, which was not the case. 
+
+- Alpha informational support: `r inf_sup_alpha$total$std.alpha`  
+- Reliability if an item is dropped: 
+```{r}
+inf_sup_alpha$alpha.drop[1:2]
+```
+
 - Alpha emotional support: `r emo_sup_alpha$total$std.alpha`
-- Alpha instrumental support: `r ins_sup_alpha$total$std.alpha`  
+- Reliability if an item is dropped: 
+```{r}
+emo_sup_alpha$alpha.drop[1:2]
+```
+
+*Step 4: Interpretation of factors*  
+
+In order to not over fit the model, we proceeded with the following model:
+
+- Factor 1: Informational support (“Tips and advice”) was best represented through the items `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and `sozunt_inf5`.
+
+- Factor 2: Emotional support ("Comfort and nearness") was best represented through the items `sozunt_emo2`, `sozunt_emo3`, `sozunt_emo4` and `sozunt_emo5`.
 
 #### 2.2 Confirmatory Factor Analysis (CFA):  Self-Efficacy Scale
 Tickell and Klassen [-@tickell2024developing] developed a  scale for measuring teacher mentoring self-efficacy beliefs and suggest a two-factor model, with factors named as *Pedagogical Practices* and *Professional Relationships*. We tested this factor structure in our German translation of the questionnaire:
 
-##### Confirmatory Factor Analysis
-
 Data for CFA:
 
 ```{r}
-data_cfa <- data %>%
+data_cfa_2 <- data %>%
   dplyr::select(seffsab_1:seffsab_9)
 ```
 
-*Step 1: Fitting a two-factor model*
+*Step 1: Fitting a Two-factor Model*
 
 ```{r}
 # specify the model
-cfa_model <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                      seffsab_6 + seffsab_28 + seffsab_48 + seffsab_39 +
-                      seffsab_46 + seffsab_47 + seffsab_4
-               rel =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
-                      seffsab_9 '
+cfa_model_se <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                         seffsab_6 + seffsab_28 + seffsab_48 + seffsab_39 +
+                         seffsab_46 + seffsab_47 + seffsab_4
+                  rel =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                         seffsab_9 '
 
 # fit the model
-fit_cfa <- cfa(cfa_model, data = data_cfa)
+fit_cfa_se <- lavaan::cfa(cfa_model_se, data = data_cfa_2)
 ```
 
 Model fit was poor:
 
 ```{r}
 # CFI cut-off: .95; SRMR cut-off: .09
-fitMeasures(fit_cfa, c("chisq", "df", "pvalue", "cfi", "srmr"))
+lavaan::fitMeasures(fit_cfa_se, c("chisq", "df", "pvalue", "cfi", "srmr"))
 ```
 
-*Step 2: Evaluate Reliability*
+*Step 2: Evaluating Factor Loading*
 
-In order to improve the model-fit we evaluated reliability:
+In order to improve the model-fit we evaluated the factor loading of each item:
+
+```{r}
+inspect_fit_cfa_se <- lavaan::inspect(fit_cfa_se, what = "std")
+inspect_fit_cfa_se$lambda
+```
+
+In the case of *Professional Relationships* several items showed a small factor loading (factor loading < .45). We discarded the items `seffsab_28`, `seffsab_47` and `seffsab_48` subsequently until further adaptation did not improve model fit anymore. 
+
+We reran the CFA:
+
+```{r}
+# specify the model
+cfa_model_se_2 <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
+                           seffsab_6 + seffsab_39 + seffsab_46 + seffsab_4
+                    rel =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
+                           seffsab_9 '
+
+# fit the model
+fit_cfa_se_2 <- lavaan::cfa(cfa_model_se_2, data = data_cfa_2)
+```
+
+Although the model fit was not as good as desired, we considered it to be sufficient:
+
+```{r}
+# CFI cut-off: .95; SRMR cut-off: .09
+fitMeasures(fit_cfa_se_2, c("chisq", "df", "pvalue", "cfi", "srmr"))
+```
+
+*Step 3: Evaluating Reliability*
+
+Both scales showed acceptable reliability:
 
 ```{r}
 sef_pea_alpha <- data %>% 
   dplyr::select(seffsab_1, seffsab_2, seffsab_20, seffsab_14, seffsab_6, 
-                seffsab_28, seffsab_48, seffsab_39, seffsab_46, seffsab_47,
-                seffsab_4) %>%
+                seffsab_39, seffsab_46, seffsab_4) %>%
   psych::alpha(title = "sef_pea_alpha")
 
 sef_rel_alpha <- data %>%  
@@ -258,54 +266,12 @@ sef_rel_alpha <- data %>%
   psych::alpha(title = "sef_rel_alpha")
 ```
 
-We were particularly interested whether reliability improves if an item is dropped and if that might as well improve model fit. Alpha could not be improved in case of *Professional Relationships*... 
+- Alpha Pedagogical Practices: `r sef_pea_alpha$total$std.alpha`
+- Alpha Professional Relationships: `r sef_rel_alpha$total$std.alpha`
 
-```{r}
-sef_pea_alpha$alpha.drop[1:2]
-```
+*Step 4: Contrasting a One-factor Model*
 
-nor *Relationships*:
-
-```{r}
-sef_rel_alpha$alpha.drop[1:2]
-```
-
-But in case of *Professional Relationships* several items could be dropped without worsening. As we believed the translation of `seffsab_48` might be not suitable, we discarded this item and reran the CFA:
-
-```{r}
-data_cfa <- data_cfa %>%
-  dplyr::select(-seffsab_48)
-
-# specify the model
-cfa_model_2 <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                        seffsab_6 + seffsab_28 + seffsab_39 + seffsab_46 + 
-                        seffsab_47 + seffsab_4
-                 rel =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_42 + 
-                        seffsab_9 '
-
-# fit the model
-fit_cfa_2 <- cfa(cfa_model_2, data = data_cfa)
-```
-
-Model fit improved, but was still not good enough;
-
-```{r}
-# CFI cut-off: .95; SRMR cut-off: .09
-fitMeasures(fit_cfa_2, c("chisq", "df", "pvalue", "cfi", "srmr"))
-```
-
-Looking at the reliability output again, we saw no room for further improvement:
-
-```{r}
-sef_pea_alpha <- data %>% 
-  dplyr::select(seffsab_1, seffsab_2, seffsab_20, seffsab_14, seffsab_6, 
-                seffsab_28, seffsab_39, seffsab_46, seffsab_47, seffsab_4) %>%
-  psych::alpha(title = "sef_pea_alpha")
-
-sef_pea_alpha$alpha.drop[1:2]
-```
-
-Although the model fit was not as good as desired, we considered it to be sufficient.
+And...Vergleich mit einem 1. faktoriellen Modell...
 
 #### 2.3 Compute Scale Scores
 
@@ -366,26 +332,21 @@ data <- data %>%
 # Emotional support
                 emo_sup = rowMeans(subset(data, select = c(sozunt_emo2, 
                                                            sozunt_emo3, 
-                                                           sozunt_emo4)),
-                                   na.rm = TRUE),
-                
-# Instrumental support               
-                ins_sup = rowMeans(subset(data, select = c(sozunt_ins1, 
-                                                           sozunt_ins5)),
-                                 na.rm = TRUE))
+                                                           sozunt_emo4,
+                                                           sozunt_emo5)),
+                                   na.rm = TRUE))
 
-## Self Efficacy
+## Self-efficacy
 
-# Self Efficacy, Factor 1: Pedagogical Practices   
+# Self-efficacy, Factor 1: Pedagogical Practices   
 data <- data %>% 
   dplyr::mutate(sef_pea = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
                                                            seffsab_20, seffsab_14, 
-                                                           seffsab_6, seffsab_28, 
-                                                           seffsab_39, seffsab_46, 
-                                                           seffsab_47, seffsab_4)),
+                                                           seffsab_6, seffsab_39, 
+                                                           seffsab_46, seffsab_4)),
                                    na.rm = TRUE),
 
-# Self Efficacy, Factor 2: Relationships
+# Self-efficacy, Factor 2: Relationships
                 sef_rel = rowMeans(subset(data, select = c(seffsab_29,seffsab_44,
                                                            seffsab_27,seffsab_42, 
                                                            seffsab_9)),
@@ -418,7 +379,7 @@ adapted from [@richter2011soziale]
 - `ins_sup`: Instrumental support
 - `emo_sup`: Emotional support
 
-*Self Efficacy*  
+*Self-efficacy*  
 adapted from [@tickell2024developing]
 
 - `sef_pea`: Pedagogical Practices
