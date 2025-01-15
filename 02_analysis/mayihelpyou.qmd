@@ -446,16 +446,21 @@ model_inf_sup <- '
   inf_support ~ b*ang
   
   # Indirect effect
+  ie_con := a3*c3
   ie_conXint := a4*c4
   ie_intXsta := a5*c5
   
   # Total effect
+  te_con := b + (a3*c3)
   te_conXint := b + (a4*c4)
   te_intXsta := b + (a5*c5)
   
   # Effect of self-efficacy
   inf_support ~ sef_pea
   inf_support ~ sef_rel
+
+  # Added due to modification indices: Improves Fit greatly
+  sozunt_inf2 ~~ sozunt_inf4
   
   # Simple Slopes: 
   # Con at designated levels of Int:
@@ -477,77 +482,21 @@ fit_inf_sup <- lavaan::sem(model = model_inf_sup,
                            se = "robust",
                            meanstructure = TRUE)
 
-summary(fit_inf_sup, standardized = TRUE)
+summary(fit_inf_sup, standardized = TRUE, rsquare = TRUE)
 ```
 
 Model fit:
 ```{r}
 fitMeasures(fit_inf_sup, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
-
-#### 3.4 Instrumental support
-
-Model did not converge
-
-```{r}
-model_ins_sup <- '
-  # Mesurement model
-  
-  # Measurement model: Instrumental support
-  ins_support =~ sozunt_ins1 + sozunt_ins5
-  
-  # Structural model
-  
-  # Direct effects
-  ins_support ~ c1*int_cntrd + c2*sta_cntrd + c3*con_cntrd + c4*conXint + c5*intXsta
-  
-  # Mediator
-  ang ~ a1*int_cntrd + a2*sta_cntrd + a3*con_cntrd + a4*conXint + a5*intXsta
-  
-  ins_support ~ b*ang
-  
-  # Indirect effect
-  ie_conXint := a4*c4
-  ie_intXsta := a5*c5
-  
-  # Total effect
-  te_conXint := b + (a4*c4)
-  te_intXsta := b + (a5*c5)
-  
-  # Effect of self-efficacy
-  ins_support ~ sef_pea
-  ins_support ~ sef_rel
-  
-  # Simple Slopes: 
-  # Con at designated levels of Int:
-  Int_High := c3+c4*1     # high int: +1 SD
-  Int_Mod := c3+c4*0      # at the mean of (centered) int
-  Int_Low := c3+c4*(-1)   # low int: -1 SD
-  
-  # Int at designated levels of Sta : 
-  Sta_High := c1+c5*1     # high sta: +1 SD
-  Sta_Mod := c1+c5*0      # at the mean of (centered) sta
-  Sta_Low := c1+c5*(-1)   # low sta: -1 SD
-'
-
-fit_ins_sup <- lavaan::sem(model = model_ins_sup, 
-                           data = data, 
-                           missing = "ML",
-                           cluster = "vig",
-                           se = "robust",
-                           meanstructure = TRUE)
-
-# summary(fit_ins_sup, standardized = TRUE)
-```
-
-#### 3.5 Emotional support
+#### 3.4 Emotional support
 
 ```{r}
 model_emo_sup <- '
   # Mesurement model
   
   # Measurement model: Emotional support
-  emo_support =~ sozunt_emo2 + sozunt_emo3 + sozunt_emo4
+  emo_support =~ sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + sozunt_emo5
   
   # Structural model
   
@@ -560,10 +509,12 @@ model_emo_sup <- '
   emo_support ~ b*ang
   
   # Indirect effect
+  ie_con := a3*c3
   ie_conXint := a4*c4
   ie_intXsta := a5*c5
   
   # Total effect
+  te_con := b + (a3*c3)
   te_conXint := b + (a4*c4)
   te_intXsta := b + (a5*c5)
   
@@ -590,7 +541,7 @@ fit_emo_sup <- lavaan::sem(model = model_emo_sup,
                            se = "robust",
                            meanstructure = TRUE)
 
-summary(fit_emo_sup, standardized = TRUE)
+summary(fit_emo_sup, standardized = TRUE, rsquare = TRUE)
 ```
 
 Model fit:
