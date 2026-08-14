@@ -35,9 +35,9 @@ bibliography: references.bib
 ---
 
 ```{css}
-#| echo: false
+/*| echo: false */
 p {
-  text-align: justify
+  text-align: justify;
 }
 ```
 
@@ -57,9 +57,11 @@ Unfold code to see information:
 ####  ------------- Load Packages ------------- ####
 library(here)           # find files
 library(tidyverse)      # data management
-library(psych)          # scale construction CFA
-library(lavaan)         # SEM
+library(psych)          # scale construction, CFA
+library(semTools)
+library(naniar)         # missings
 library(ggcorrplot)     # correlation plot
+library(lavaan)         # path analysis
 ```
 
 ## Data Analysis
@@ -69,19 +71,28 @@ library(ggcorrplot)     # correlation plot
 Data:
 
 ```{r}
-data <- read.csv(here("01_data/b_sab_mzp2_2024_R_data_file.csv"))
+data_t1 <- read.csv(here("01_data/b_sab_mzp1_2024_data_file.csv"))
+
+data_t2 <- read.csv(here("01_data/b_sab_mzp2_2024_data_file.csv"))
 ```
 
 ### 2 Measures
 
 #### 2.1 Confirmatory  Factor Analysis (CFA): Social Support Scales  
-Items measuring social supports were developed aligning with Richter at al. [-@richter2011soziale], Schulz and Schwarzer [-@BSS] and our theoretical understanding of social support. We adapted the perspective to that of the educators (social support providers). Five items were created for each dimension of social support. The factorial structure of three dimensions was tested calculating a confirmatory factor analysis. 
+Items measuring social supports were developed aligning with Richter at al. [-@richter2011], Schulz and Schwarzer [-@BSSS] and our theoretical understanding of social support. We adapted the perspective to that of the educators (social support providers). Five items were created for each dimension of social support. The factorial structure of three dimensions was tested calculating a confirmatory factor analysis. 
 
 Data for CFA:
 
 ```{r}
-data_cfa_1 <- data %>%
+data_cfa_1 <- data_t2 %>%
   dplyr::select(sozunt_ins5:sozunt_ins2)
+```
+
+Describe data:
+
+```{r}
+data_cfa_1_sorted <- data_cfa_1[, sort(colnames(data_cfa_1))]
+describe(data_cfa_1_sorted)
 ```
 
 *Step 1: Fitting a Three-factor Model*
@@ -96,7 +107,10 @@ cfa_model_ss <- ' inf =~ sozunt_inf1 + sozunt_inf2 + sozunt_inf3 + sozunt_inf4 +
                          sozunt_ins5 '
 
 # fit the model
-fit_cfa_ss <- lavaan::cfa(cfa_model_ss, data = data_cfa_1)
+fit_cfa_ss <- lavaan::cfa(cfa_model_ss, 
+                          data = data_cfa_1,
+                          ordered = TRUE,
+                          estimator = "DWLS")
 
 # evaluate the model
 summary(fit_cfa_ss, standardized = TRUE)
@@ -108,132 +122,94 @@ Model fit was poor:
 # CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
 lavaan::fitMeasures(fit_cfa_ss, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
-Since no items loaded significantly on the instrumental support factor `ins`, we discarded these items and fitted a two-factor model distinguishing between emotional and informational support:
 
-*Step 2: Fitting a Two-factor Model*
+Since factor loadings of on the instrumental support factor `ins` were low (factor loading < .45) for items `sozunt_ins3` and `sozunt_ins4`, we operationalized instrumental support based on the three highest-loading items `sozunt_ins1`, `sozunt_ins2`, `sozunt_ins3`, which are closely aligned with the theoretical notion of providing material, and reran the CFA:
 
 ```{r}
 # specify the model
 cfa_model_ss_2 <- ' inf =~ sozunt_inf1 + sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + 
                            sozunt_inf5
                     emo =~ sozunt_emo1 + sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + 
-                           sozunt_emo5 '
+                           sozunt_emo5
+                    ins =~ sozunt_ins1 + sozunt_ins2 + sozunt_ins3 '
 
 # fit the model
-fit_cfa_ss_2 <- lavaan::cfa(cfa_model_ss_2, data = data_cfa_1)
+fit_cfa_ss_2 <- lavaan::cfa(cfa_model_ss_2, 
+                            data = data_cfa_1,
+                            ordered = TRUE,
+                            estimator = "DWLS")
+
+# evaluate the model
+summary(fit_cfa_ss_2, standardized = TRUE)
 ```
 
-Model fit was still poor:
+Model fit was good:
 
 ```{r}
 # CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
 lavaan::fitMeasures(fit_cfa_ss_2, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
-
-Evaluation of factor loading:
+*Step 2: Evaluating Reliability*
 
 ```{r}
-inspect_fit_cfa_ss_2 <- lavaan::inspect(fit_cfa_ss_2, what = "std")
-inspect_fit_cfa_ss_2$lambda
+inf_sup_omega <- data_t2 %>% 
+  dplyr::select(sozunt_inf1, sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
+  psych::omega(title = "sozunt_inf", poly = TRUE, nfactor = 1)
+
+emo_sup_omega <- data_t2 %>%  
+  dplyr::select(sozunt_emo1, sozunt_emo2, sozunt_emo3, sozunt_emo4, sozunt_emo5) %>%
+  psych::omega(title = "sozunt_emo", poly = TRUE, nfactors = 1)
+
+ins_sup_omega <- data_t2 %>% 
+  dplyr::select(sozunt_ins1, sozunt_ins2, sozunt_ins3) %>%
+  psych::omega(title = "sozunt_inf", poly = TRUE, nfactors = 1)
 ```
 
-We discarded the items `sozunt_inf1` and `sozunt_emo1` (factor loading < .45) and reran the CFA:
+- Omega informational support: `r inf_sup_omega$omega.tot`  
+- Omega emotional support: `r emo_sup_omega$omega.tot`
+- Omega instrumental support was low, as expected: `r ins_sup_omega$omega.tot`
+
+From the previous CFA that `sozunt_emo1` loads weak. In order to increase reliability we discarded this item and calculated omega again:
 
 ```{r}
-# specify the model
-cfa_model_ss_3 <- ' inf =~ sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + 
-                           sozunt_inf5
-                    emo =~ sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + 
-                           sozunt_emo5 '
-
-# fit the model
-fit_cfa_ss_3 <- lavaan::cfa(cfa_model_ss_3, data = data_cfa_1)
-```
-
-Model fit was closer to meeting the desired criteria, but still poor:
-
-```{r}
-# CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
-lavaan::fitMeasures(fit_cfa_ss_3, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
-```
-
-*Step 3: Evaluating Reliability*
-
-```{r}
-inf_sup_alpha <- data %>% 
-  dplyr::select(sozunt_inf2, sozunt_inf3, sozunt_inf4, sozunt_inf5) %>%
-  psych::alpha(title = "sozunt_inf")
-
-emo_sup_alpha <- data %>%  
+emo_sup_omega <- data_t2 %>%  
   dplyr::select(sozunt_emo2, sozunt_emo3, sozunt_emo4, sozunt_emo5) %>%
-  psych::alpha(title = "sozunt_emo")
+  psych::omega(title = "sozunt_emo", poly = TRUE, nfactors = 1)
 ```
 
-We were interested whether reliability improves if an item is dropped and if that might as well further improve model fit, which was not the case. 
+Omega increased: `r emo_sup_omega$omega.tot`
 
-- Alpha informational support: `r inf_sup_alpha$total$std.alpha`  
-- Reliability if an item is dropped: 
-```{r}
-inf_sup_alpha$alpha.drop[1:2]
-```
-
-- Alpha emotional support: `r emo_sup_alpha$total$std.alpha`
-- Reliability if an item is dropped: 
-```{r}
-emo_sup_alpha$alpha.drop[1:2]
-```
-
-*Step 4: Evaluate modification indices*
+(!!!) If you calculate omega with the semTools package, which uses Green and Yang's (2009) correction, the results differ significantly (Laut Claude die bessere Formel):
 
 ```{r}
-modindices(fit_cfa_ss_3, sort = TRUE, minimum.value = 8)
+compRelSEM(fit_cfa_ss_2)
 ```
 
-- `sozunt_inf2	~~	sozunt_inf4` was added (justified by similarity of content)
-
-```{r}
-# specify the model
-cfa_model_ss_4 <- ' inf =~ sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + 
-                           sozunt_inf5
-                    emo =~ sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + 
-                           sozunt_emo5 
-
-                    sozunt_inf2	~~	sozunt_inf4'
-
-# fit the model
-fit_cfa_ss_4 <- lavaan::cfa(cfa_model_ss_4, data = data_cfa_1)
-
-
-# evaluate the model
-summary(fit_cfa_ss_4, standardized = TRUE)
-```
-
-Model fit improved:
-
-```{r}
-# CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
-lavaan::fitMeasures(fit_cfa_ss_4, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
-```
-
-*Step 5: Interpretation of factors*  
+*Step 3: Interpretation of factors*  
 
 We proceeded with the following model:
 
-- Factor 1: Informational support (“Tips and advice”) was best represented through the items `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and `sozunt_inf5`.
-
-- The residual variances of `sozunt_inf2`	and `sozunt_inf4` are allowed to be correlated.
+- Factor 1: Informational support (“Tips and advice”) was best represented through the items `sozunt_inf1`, `sozunt_inf2`, `sozunt_inf3`, `sozunt_inf4` and `sozunt_inf5`.
 
 - Factor 2: Emotional support ("Comfort and nearness") was best represented through the items `sozunt_emo2`, `sozunt_emo3`, `sozunt_emo4` and `sozunt_emo5`.
 
+- Factor 3: Instrumental support ("Provision of goods and materials") was best represented through the items `sozunt_ins1`, `sozunt_ins2` and `sozunt_ins3`. 
+
 
 #### 2.2 Confirmatory Factor Analysis (CFA):  Self-Efficacy Scale
-Tickell and Klassen [-@tickell2024developing] developed a  scale for measuring teacher mentoring self-efficacy beliefs and suggest a two-factor model, with factors named as *Pedagogical Practices* and *Professional Relationships*. We tested this factor structure in our German translation of the questionnaire:
+Tickell and Klassen [-@tickell2024] developed a  scale for measuring teacher mentoring self-efficacy beliefs and suggest a two-factor model, with factors named as *Pedagogical Practices* and *Professional Relationships*. We tested this factor structure in our German translation of the questionnaire:
 
 Data for CFA:
 
 ```{r}
-data_cfa_2 <- data %>%
+data_cfa_2 <- data_t2 %>%
   dplyr::select(seffsab_1:seffsab_9)
+```
+
+Describe data:
+
+```{r}
+describe(data_cfa_2)
 ```
 
 *Step 1: Fitting a Two-factor Model*
@@ -247,109 +223,132 @@ cfa_model_se <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 +
                          seffsab_9 '
 
 # fit the model
-fit_cfa_se <- lavaan::cfa(cfa_model_se, data = data_cfa_2)
+fit_cfa_se <- lavaan::cfa(cfa_model_se, 
+                          data = data_cfa_2,
+                          ordered = TRUE,
+                          estimator = "DWLS")
+
+# evaluate the model
+summary(fit_cfa_se, standardized = TRUE)
 ```
 
 Model fit was poor:
 
 ```{r}
-# CFI cut-off: .95; SRMR cut-off: .09
+# CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
 lavaan::fitMeasures(fit_cfa_se, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
-*Step 2: Evaluating Factor Loadings*
-
-In order to improve the model-fit we evaluated the factor loading of each item:
+Evaluating modification indices:
 
 ```{r}
-inspect_fit_cfa_se <- lavaan::inspect(fit_cfa_se, what = "std")
-inspect_fit_cfa_se$lambda
+inspect_fit_cfa_se <- lavaan::modindices(fit_cfa_se, sort = TRUE, minimum.value = 10)
+
+inspect_fit_cfa_se
 ```
 
-In the case of *Professional Relationships* several items showed a small factor loading (factor loading < .45). We discarded the items `seffsab_28`, `seffsab_47` and `seffsab_48` subsequently until further adaptation did not improve model fit anymore. 
+- `seffsab_48` was removed (justified by similarity of content with `seffsab_39`, which in contrast covered the construct better) 
 
 We reran the CFA:
 
 ```{r}
 # specify the model
 cfa_model_se_2 <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                           seffsab_6 + seffsab_39 + seffsab_46 + seffsab_4
+                           seffsab_6 + seffsab_28 + seffsab_39 +
+                           seffsab_46 + seffsab_47 + seffsab_4
                     rel =~ seffsab_29 + seffsab_44 + seffsab_27 + seffsab_43 + 
                            seffsab_9 '
 
 # fit the model
-fit_cfa_se_2 <- lavaan::cfa(cfa_model_se_2, data = data_cfa_2)
+fit_cfa_se_2 <- lavaan::cfa(cfa_model_se_2, 
+                            data = data_cfa_2,
+                            ordered = TRUE,
+                            estimator = "DWLS")
+
+# evaluate the model
+summary(fit_cfa_se_2, standardized = TRUE)
 ```
 
 Model fit was still not as good as desired:
 
 ```{r}
-# CFI cut-off: .95; SRMR cut-off: .09
-fitMeasures(fit_cfa_se_2, c("chisq", "df", "pvalue", "cfi", "srmr"))
+# CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
+fitMeasures(fit_cfa_se_2, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
-*Step 3: Evaluating modification indices*
-
-Model fit can be improved by adding a cross loading and a residual variances:
+Evaluating modification indices again:
 
 ```{r}
 inspect_fit_cfa_se_2 <- lavaan::modindices(fit_cfa_se_2, sort = TRUE, minimum.value = 10)
-```
 
-- `pae =~ seffsab_27` was added and `rel =~ seffsab_27`removed
-- `seffsab_1 ~~ seffsab_2` was added (justified by similarity of content) 
+inspect_fit_cfa_se_2
+```
+- `seffsab_2` was removed (justified by similarity of content with `seffsab_1`, which in contrast covered the construct better) 
+- `seffsab_27` was removed (justified by ambiguity with regard to both factors) 
 
 We reran the CFA:
 
 ```{r}
 # specify the model
-cfa_model_se_3 <- ' pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                           seffsab_6 + seffsab_39 + seffsab_46 + seffsab_4 +
-                           seffsab_27
-                    rel =~ seffsab_29 + seffsab_44 + seffsab_43 + seffsab_9 
-                    # residucal variances
-                    seffsab_1 ~~ seffsab_2'
+cfa_model_se_3 <- ' pae =~ seffsab_1 + seffsab_20 + seffsab_14 + 
+                           seffsab_6 + seffsab_28 + seffsab_39 +
+                           seffsab_46 + seffsab_47 + seffsab_4
+                    rel =~ seffsab_29 + seffsab_44 + seffsab_43 + 
+                           seffsab_9 '
 
 # fit the model
-fit_cfa_se_3 <- lavaan::cfa(cfa_model_se_3, data = data_cfa_2)
+fit_cfa_se_3 <- lavaan::cfa(cfa_model_se_3, 
+                            data = data_cfa_2,
+                            ordered = TRUE,
+                            estimator = "DWLS")
 ```
 
 Model fit improved:
 
 ```{r}
-# CFI cut-off: .95; SRMR cut-off: .09
+# CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
 fitMeasures(fit_cfa_se_3, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
-*Step 3: Evaluating Reliability*
+
+*Step 2: Evaluating Reliability*
 
 Both scales showed acceptable reliability:
 
 ```{r}
-sef_pea_alpha <- data %>% 
-  dplyr::select(seffsab_1, seffsab_2, seffsab_20, seffsab_14, seffsab_6, 
-                seffsab_39, seffsab_46, seffsab_4, seffsab_27) %>%
-  psych::alpha(title = "sef_pea_alpha")
+sef_pea_omega <- data_t2 %>% 
+  dplyr::select(seffsab_1, seffsab_20, seffsab_14, seffsab_6, seffsab_28,
+                seffsab_39, seffsab_46, seffsab_47, seffsab_4) %>%
+  psych::omega(title = "sef_pea", poly = TRUE, nfactors = 1)
 
-sef_rel_alpha <- data %>%  
+sef_rel_omega <- data_t2 %>%  
   dplyr::select(seffsab_29, seffsab_44, seffsab_43, seffsab_9) %>%
-  psych::alpha(title = "sef_rel_alpha")
+  psych::omega(title = "sef_rel", poly = TRUE, nfactors = 1)
 ```
 
-- Alpha Pedagogical Practices: `r sef_pea_alpha$total$std.alpha`
-- Alpha Professional Relationships: `r sef_rel_alpha$total$std.alpha`
+- Omega Pedagogical Practices: `r sef_pea_omega$omega.tot`  
+- Omega Professional Relationships: `r sef_rel_omega$omega.tot`
 
-*Step 4: Contrasting a One-factor Model*
+
+(!!!) Using the semTools package:
+
+```{r}
+compRelSEM(fit_cfa_se_3)
+```
+
+*Step 3: Contrasting a One-factor Model*
 
 ```{r}
 # specify the model
-cfa_model_se_4 <- ' sef =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + 
-                           seffsab_6 + seffsab_39 + seffsab_46 + seffsab_4 +
-                           seffsab_29 + seffsab_44 + seffsab_27 + seffsab_43 + 
-                           seffsab_9 
-                    # residucal variances
-                    seffsab_1 ~~ seffsab_2'
+cfa_model_se_4 <- ' sef =~ seffsab_1 + seffsab_20 + seffsab_14 + 
+                           seffsab_6 + seffsab_28 + seffsab_39 +
+                           seffsab_46 + seffsab_47 + seffsab_4 +
+                           seffsab_29 + seffsab_44 + seffsab_43 + 
+                           seffsab_9 '
 
 # fit the model
-fit_cfa_se_4 <- lavaan::cfa(cfa_model_se_4, data = data_cfa_2)
+fit_cfa_se_4 <- lavaan::cfa(cfa_model_se_4, 
+                            data = data_cfa_2,
+                            ordered = TRUE,
+                            estimator = "DWLS")
 ```
 
 Model fit:
@@ -358,63 +357,39 @@ Model fit:
 # CFI cut-off: .95; SRMR cut-off: .09
 fitMeasures(fit_cfa_se_4, c("chisq", "df", "pvalue", "cfi", "srmr"))
 ```
+
 Compare to two-factor-model:
 
 ```{r}
 anova(fit_cfa_se_3, fit_cfa_se_4)
 ```
 
+The Two-factor Model describes the data better.
+
+
 #### 2.3 Compute Scale Scores
 
 Unfold code to see scale construction:
 
 ```{r}
-# Factor vignette, dummy for each vignette
-# data <- data %>%
-#  dplyr::mutate(vig = case_when((random == 1) ~ 1,
-#                                (random == 2) ~ 2,
-#                                (random == 3) ~ 3,
-#                                TRUE ~ as.numeric(NA)),
-#                vig1 = ifelse(vig == 1, 1, 0),
-#                vig2 = ifelse(vig == 2, 1, 0),
-#                vig3 = ifelse(vig == 3, 1, 0))
+data <- data_t2
 
-
+## Vignette as factor
 data$vig <- as.factor(data$vig)
-
 
 ## Attribution 
 
 data <- data %>%
   dplyr::mutate(int = int_1,  # Internality
                 sta = sta_1,  # Stability 
-                glo = glo_1,  # Globality
                 con = kon_1)  # Controllability
-
-## Affect 
-
-# Negative affect, positive affect
-data <- data %>% 
-  dplyr::mutate(pos_aff = rowMeans(subset(data, select = c(affekt_1, affekt_3, 
-                                                           affekt_4, affekt_6, 
-                                                           affekt_10, affekt_11,
-                                                           affekt_12, affekt_15)),
-                                   na.rm = TRUE),
-                neg_aff = rowMeans(subset(data, select = c(affekt_2, affekt_5, 
-                                                           affekt_7, affekt_8, 
-                                                           affekt_13, affekt_14,
-                                                           affekt_16)),
-                                   na.rm = TRUE),
-                ang = affekt_5,   # Anger
-                gui = affekt_7,   # Guilt
-                sha = affekt_14)  # Shame
-
 
 ## Social Support
 
 # Informational support
 data <- data %>% 
-  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf2,
+  dplyr::mutate(inf_sup = rowMeans(subset(data, select = c(sozunt_inf1,
+                                                           sozunt_inf2,
                                                            sozunt_inf3,
                                                            sozunt_inf4, 
                                                            sozunt_inf5)),
@@ -425,71 +400,113 @@ data <- data %>%
                                                            sozunt_emo3, 
                                                            sozunt_emo4,
                                                            sozunt_emo5)),
+                                   na.rm = TRUE),
+# Instrumental Support
+                ins_sup = rowMeans(subset(data, select = c(sozunt_ins1, 
+                                                           sozunt_ins2, 
+                                                           sozunt_ins3)),
                                    na.rm = TRUE))
 
 ## Self-efficacy
 
-# Self-efficacy, Factor 1: Pedagogical Practices   
+# Pedagogical Practices   
 data <- data %>% 
-  dplyr::mutate(sef_pea = rowMeans(subset(data, select = c(seffsab_1, seffsab_2, 
-                                                           seffsab_20, seffsab_14, 
-                                                           seffsab_6, seffsab_39, 
-                                                           seffsab_46, seffsab_4,
-                                                           seffsab_27)),
+  dplyr::mutate(sef_pea = rowMeans(subset(data, select = c(seffsab_1, seffsab_20, 
+                                                           seffsab_14, seffsab_6, 
+                                                           seffsab_28, seffsab_39,
+                                                           seffsab_46, seffsab_47, 
+                                                           seffsab_4)),
                                    na.rm = TRUE),
 
-# Self-efficacy, Factor 2: Relationships
-                sef_rel = rowMeans(subset(data, select = c(seffsab_29, seffsab_44,
+# Relationships
+                sef_rel = rowMeans(subset(data, select = c(seffsab_29, seffsab_44, 
                                                            seffsab_43, seffsab_9)),
                                    na.rm = TRUE))
+
+## Constructivist and Transmissive Mentoring (subanalysis with data from an earlier measurement point)
+
+# Constructive mentoring
+
+## Merge data_t1 into data_t2, keeping all rows from data_t2 (main dataset).
+## Only ids present in data_t2 are kept.
+data_t1t2 <- data %>%
+  inner_join(data_t1, by = "id")
+
+data_t1t2 <- data_t1t2 %>% 
+  dplyr::mutate(con_men = rowMeans(subset(data_t1t2, select = c(aunl01, aunl02, 
+                                                                aunl03, aunl04, 
+                                                                aunl05, aunl06,
+                                                                aunl07, aunl08, 
+                                                                aunl09, aunl10)),
+                                   na.rm = TRUE),
+
+# Transmissive mentoring
+                tra_men = rowMeans(subset(data_t1t2, select = c(aunl11, aunl12, 
+                                                                aunl13, aunl14,
+                                                                aunl15, aunl16,
+                                                                aunl17, aunl18,
+                                                                aunl19)),
+                                   na.rm = TRUE))
 ```
+
 
 #### 2.4 Glossary
 
 *Attributions*   
-adapted from [@zurattributionsstil]
+adapted from [@steinsmeier1985]
 
 - `int`: Internality
 - `sta`: Stability
-- `glo`: Globality
 - `con`: Controllability
 
-*Affect*  
-after [@breyer2016deutsche]
-
-- `pos_aff`: Positive affect
-- `neg_aff`: Negative affect
-- `ang`: Anger
-- `gui`: Guilt
-- `sha`: Shame
-
 *Social Support*  
-adapted from [@richter2011soziale]
+adapted from [@richter2011]
 
 - `inf_sup`: Informational support
-- `ins_sup`: Instrumental support
 - `emo_sup`: Emotional support
+- `ins_sup`: Instrumental support
 
 *Self-efficacy*  
-adapted from [@tickell2024developing]
+adapted from [@tickell2024]
 
 - `sef_pea`: Pedagogical Practices
 - `sef_rel`: Relationships
 
+*Constructivist and Transmissive Mentoring*  
+adapted from [@voss2011]
+
+- `con_men`: Constructivist Mentoring
+- `tra_men`: Transmissive Mentoring
+
 ### 3 Results
 
-- H1: The more internal a cause is perceived to be, the less willing teacher educators are to provide support, both directly (H1a) and indirectly (H1b) through the elicitation of anger.
-- H2: This relationships is expected to be weaker (more support (H2a), less anger(H2b)) when the cause is also perceived as stable. 
-- H3: The more controllable a cause is perceived to be, the less willing teacher educators are to provide support, both directly (H3a) and indirectly (H3b) through the elicitation of anger.
-- H4: This relationships are expected to be stronger (less support (H4a), less anger (H4b)) when the cause is also perceived as internal.
+- H1: The more internal a cause is perceived to be, the less willing teacher educators are to provide support.
+- H2: This relationships is expected to be weaker (more support) when the cause is also perceived as stable. 
+- H3: The more controllable a cause is perceived to be, the less willing teacher educators are to provide support.
+- H4: This relationships are expected to be stronger (less support) when the cause is also perceived as internal.
 - H5: The higher mentors’ self-efficacy beliefs are, the more support they provide. 
 
-#### 3.1 Correlation matrix
 
+#### 3.1 Preliminaries
+
+Only use the data from those who participated in the vignette experiment:
+
+```{r}
+data_ana <- data %>%
+  dplyr::filter(vig == 1 | vig == 2 | vig == 3) %>%
+  dplyr::select(int, con, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel) 
+```
+
+##### 3.2.1 Missingness
+```{r}
+naniar::vis_miss(data_ana)
+```
+
+##### 3.2.2 Correlation matrix
 ```{r}
 # 
 data_cor <- data %>%
-  dplyr::select(int, con, sta, ang, inf_sup, emo_sup, sef_pea, sef_rel) %>%
+  dplyr::select(int, con, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel) %>%
   drop_na()
 
 # Plot correlation matrix
@@ -503,37 +520,25 @@ ggcorrplot(cor_mat,
            lab_size = 3, 
            colors = c("red", "white", "green4"),
            ggtheme = ggplot2::theme_minimal())
-
-# Plot only significant correlations
-ggcorrplot(cor_mat,
-           method = "square",
-           type = "lower",       # lower triangle only
-           lab = TRUE,           # add correlation coefficients
-           lab_size = 3, 
-           p.mat = p_mat,       # p-values matrix
-           sig.level = 0.05,    # significance cutoff
-           insig = "blank",     # blanks out insignificant correlations
-           colors = c("red", "white", "green4"),
-           ggtheme = ggplot2::theme_minimal())
 ```
 
-#### 3.2 Preliminaries
+##### 3.2.3 Multivariate  normality
 
-Only include data, that participated in the vignette experiment:
+##### 3.2.4 Linearity and homoscedasticity
+
+##### 3.2.4 Multicollinearity
+
+
+#### 3.3 Path Analysis
+
+Independent variables were mean centered and standardized, before the interaction terms were calculated:
+
 ```{r}
 data <- data %>%
-  dplyr::filter(vig == 1 | vig == 2 | vig == 3) 
-```
+  dplyr::filter(vig == 1 | vig == 2 | vig == 3) %>%
+  dplyr::select(int, con, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel, vig) 
 
-Test for normality, etc.
-```{r}
-# tbc
-```
-
-Independent variables were mean centered, before the interaction terms were calculated:
-
-```{r}
-# mean center independent variables
+# mean center and standardize independent variables
 data$int_cntrd <- scale(data$int, center = TRUE, scale = TRUE)
 data$sta_cntrd <- scale(data$sta, center = TRUE, scale = TRUE)
 data$con_cntrd <- scale(data$con, center = TRUE, scale = TRUE)
@@ -543,57 +548,38 @@ data$conXint <- data$con_cntrd * data$int_cntrd
 data$intXsta <- data$int_cntrd * data$sta_cntrd 
 ```
 
-The high correlations between the support scales can lead to multicollinearity and suppression effects in structural equation models. To reduce these effects, different models were calculated for each kind of social support:
-
-#### 3.3 SES
+##### 3.3.1 Controlability
 
 ```{r}
 model <- '
-  # Mesurement models
+  inf_sup ~ int_cntrd + con_cntrd + conXint
+  emo_sup ~ int_cntrd + con_cntrd + conXint
+  ins_sup ~ int_cntrd + con_cntrd + conXint
   
-  # Measurement model: Informational support
-  inf_support =~ sozunt_inf2 + sozunt_inf3 + sozunt_inf4 + sozunt_inf5
-  emo_support =~ sozunt_emo2 + sozunt_emo3 + sozunt_emo4 + sozunt_emo5
+  inf_sup ~~ emo_sup
+  emo_sup ~~ ins_sup
+  inf_sup ~~ ins_sup
   
-  # Measurement model: Self-efficacy support
-  pae =~ seffsab_1 + seffsab_2 + seffsab_20 + seffsab_14 + seffsab_6 + 
-         seffsab_39 + seffsab_46 + seffsab_4 + seffsab_27
-         
-  rel =~ seffsab_29 + seffsab_44 + seffsab_43 + seffsab_9 
-  
-  # Structural model
-  # Direct effects
-  inf_support ~ int_cntrd + con_cntrd + conXint + intXsta
-  emo_support ~ int_cntrd + con_cntrd + conXint + intXsta
-  
-  # Mediator
-  ang ~ int_cntrd + con_cntrd + conXint + intXsta
-  
-  inf_support ~ ang
-  emo_support ~ ang
-  
-  # Effect of self-efficacy
-  inf_support ~ pae
-  inf_support ~ rel
-  emo_support ~ pae
-  emo_support ~ rel
-  
-  # modification indices according to previous CFA
-  sozunt_inf2 ~~ sozunt_inf4
-  seffsab_1 ~~ seffsab_2
-  
-  pae ~~ rel
-  inf_support ~~ emo_support
+  int_cntrd ~~ con_cntrd
+  con_cntrd ~~ conXint
+  int_cntrd ~~ conXint
 '
 
 fit_ses <- lavaan::sem(model = model, 
                        data = data, 
                        missing = "FIML",
-                       cluster = "vig",
-                       se = "robust",
-                       meanstructure = TRUE)
+                       estimator = "ML",
+                       meanstructure = TRUE,
+                       se = "bootstrap", 
+                       bootstrap = 1000)
 
-summary(fit_ses, standardized = TRUE, rsquare = TRUE)
+parameterEstimates(
+  fit_ses,
+  standardized = TRUE,
+  rsquare = TRUE,
+  ci = TRUE,
+  level = 0.90
+)
 ```
 
 Model fit:
@@ -601,64 +587,143 @@ Model fit:
 fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
-#### 3.4 Exploration
-
-*Might there be a relationship between anger and self-efficacy?*
-
-Yes:
+##### 3.3.2 Internality
 
 ```{r}
-model <- lm(ang ~ sef_rel + sef_pea, data = data)
-summary(model, standardized = TRUE)
+model <- '
+  inf_sup ~ int_cntrd + sta_cntrd + intXsta
+  emo_sup ~ int_cntrd + sta_cntrd + intXsta
+  ins_sup ~ int_cntrd + sta_cntrd + intXsta
+  
+  inf_sup ~~ emo_sup
+  emo_sup ~~ ins_sup
+  inf_sup ~~ ins_sup
+  
+  int_cntrd ~~ sta_cntrd
+  sta_cntrd ~~ intXsta
+  int_cntrd ~~ intXsta
+'
+
+fit_ses <- lavaan::sem(model = model, 
+                       data = data, 
+                       missing = "FIML",
+                       estimator = "ML",
+                       meanstructure = TRUE,
+                       se = "bootstrap", 
+                       bootstrap = 1000)
+
+parameterEstimates(
+  fit_ses,
+  standardized = TRUE,
+  rsquare = TRUE,
+  ci = TRUE,
+  level = 0.90
+)
 ```
 
-- Vielleicht können wir uns noch anschauen, wie sich die SE auf das Wohlbefinden auswirkt, angeregt durch den Befund, dass die SAB hier in Abhängigkeit ihrer SE negativere Emotionen haben.
+Model fit:
+```{r}
+fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
 
-#### 3.5 Descriptives: Vignettes
+##### 3.3.3 Self-Efficacy
+```{r}
+model <- '
+  inf_sup ~ sef_rel + sef_pea
+  emo_sup ~ sef_rel + sef_pea
+  ins_sup ~ sef_rel + sef_pea
+  
+  inf_sup ~~ emo_sup
+  emo_sup ~~ ins_sup
+  inf_sup ~~ ins_sup
+  
+  sef_rel ~~ sef_pea
+'
 
-*Were the situations perceived as a failure?*
+fit_ses <- lavaan::sem(model = model, 
+                       data = data, 
+                       missing = "FIML",
+                       estimator = "ML",
+                       meanstructure = TRUE,
+                       se = "bootstrap", 
+                       bootstrap = 1000)
 
-"How much do you see the lessons you have experienced as a failure or a success?"
+parameterEstimates(
+  fit_ses,
+  standardized = TRUE,
+  rsquare = TRUE,
+  ci = TRUE,
+  level = 0.90
+)
+```
 
-- 1, 2, 3: Failure
-- 4, 5, 6: Success
+Model fit:
+```{r}
+fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
+
+##### 3.3.4 Constructivist and Transmissive Mentoring
 
 ```{r}
-data_vig1 <- data %>% 
-  dplyr::filter(vig == 1) 
+model <- '
+  inf_sup ~ con_men + tra_men
+  emo_sup ~ con_men + tra_men
+  ins_sup ~ con_men + tra_men
+  
+  inf_sup ~~ emo_sup
+  emo_sup ~~ ins_sup
+  inf_sup ~~ ins_sup
+  
+  sef_rel ~~ tra_men
+'
 
-data_vig2 <- data %>% 
-  dplyr::filter(vig == 2) 
+fit_ses <- lavaan::sem(model = model, 
+                       data = data_t1t2, 
+                       missing = "FIML",
+                       estimator = "ML",
+                       meanstructure = TRUE,
+                       se = "bootstrap", 
+                       bootstrap = 1000)
 
-data_vig3 <- data %>% 
-  dplyr::filter(vig == 3) 
-
-tab1 <- table(data_vig1$check_1)
-tab2 <- table(data_vig2$check_1)
-tab3 <- table(data_vig3$check_1)
-
-barplot(tab1, main = "Vignette 1")
-barplot(tab2, main = "Vignette 2")
-barplot(tab3, main = "Vignette 3")
+parameterEstimates(
+  fit_ses,
+  standardized = TRUE,
+  rsquare = TRUE,
+  ci = TRUE,
+  level = 0.90
+)
 ```
+
+Model fit:
+```{r}
+fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
+
+#### 3.3 Descriptives: Vignettes
 
 *Were the situations cause equally attributed?*
 
 ```{r}
-tab4 <- data.frame(int = mean(data_vig1$int, na.rm = TRUE),
-                   sta = mean(data_vig1$sta, na.rm = TRUE),
-                   glo = mean(data_vig1$glo, na.rm = TRUE),
-                   con = mean(data_vig1$con, na.rm = TRUE))
+data_vig1 <- data_t2 %>% 
+  dplyr::filter(vig == 1) 
 
-tab5 <- data.frame(int = mean(data_vig2$int, na.rm = TRUE),
-                   sta = mean(data_vig2$sta, na.rm = TRUE),
-                   glo = mean(data_vig2$glo, na.rm = TRUE),
-                   con = mean(data_vig2$con, na.rm = TRUE))
+data_vig2 <- data_t2 %>% 
+  dplyr::filter(vig == 2) 
 
-tab6 <- data.frame(int = mean(data_vig3$int, na.rm = TRUE),
-                   sta = mean(data_vig3$sta, na.rm = TRUE),
-                   glo = mean(data_vig3$glo, na.rm = TRUE),
-                   con = mean(data_vig3$con, na.rm = TRUE))
+data_vig3 <- data_t2 %>% 
+  dplyr::filter(vig == 3) 
+
+tab4 <- data.frame(int = mean(data_vig1$int_1, na.rm = TRUE),
+                   sta = mean(data_vig1$sta_1, na.rm = TRUE),
+                   con = mean(data_vig1$kon_1, na.rm = TRUE))
+
+tab5 <- data.frame(int = mean(data_vig2$int_1, na.rm = TRUE),
+                   sta = mean(data_vig2$sta_1, na.rm = TRUE),
+                   con = mean(data_vig2$kon_1, na.rm = TRUE))
+
+tab6 <- data.frame(int = mean(data_vig3$int_1, na.rm = TRUE),
+                   sta = mean(data_vig3$sta_1, na.rm = TRUE),
+                   con = mean(data_vig3$kon_1, na.rm = TRUE))
 
 barplot(as.matrix(tab4), main = "Vignette 1")
 barplot(as.matrix(tab5), main = "Vignette 2")
@@ -668,7 +733,7 @@ barplot(as.matrix(tab6), main = "Vignette 3")
 *What reasons were given for the situation?*
 
 ```{r}
-sorted_data <- data %>%
+sorted_data <- data_t2 %>%
   dplyr::select(vig, ursache) %>%
    dplyr::arrange(vig)
 ```
