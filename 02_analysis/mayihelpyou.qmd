@@ -110,7 +110,9 @@ cfa_model_ss <- ' inf =~ sozunt_inf1 + sozunt_inf2 + sozunt_inf3 + sozunt_inf4 +
 fit_cfa_ss <- lavaan::cfa(cfa_model_ss, 
                           data = data_cfa_1,
                           ordered = TRUE,
-                          estimator = "DWLS")
+                          estimator = "DWLS",
+                          test = "scaled.shifted",
+                          missing = "pairwise")
 
 # evaluate the model
 summary(fit_cfa_ss, standardized = TRUE)
@@ -120,7 +122,9 @@ Model fit was poor:
 
 ```{r}
 # CFI cut-off: > .95; SRMR cut-off: < .08; RMSEA cut-off: < .06
-lavaan::fitMeasures(fit_cfa_ss, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+lavaan::fitmeasures(fit_cfa_ss, c("chisq.scaled", "df.scaled", 
+                                  "pvalue.scaled",
+                                  "cfi.robust", "rmsea.robust", "srmr"))
 ```
 
 Since factor loadings of on the instrumental support factor `ins` were low (factor loading < .45) for items `sozunt_ins3` and `sozunt_ins4`, we operationalized instrumental support based on the three highest-loading items `sozunt_ins1`, `sozunt_ins2`, `sozunt_ins3`, which are closely aligned with the theoretical notion of providing material, and reran the CFA:
