@@ -1,6 +1,6 @@
 ---
-title: May I Help You?
-subtitle: Exploring Teacher Educators' Causal Attributions, Self-Efficacy, and Social Support
+title: Teacher Educators’ Self-Efficacy and Attributional Beliefs as Predictors Social Support for Mentees
+subtitle: A Vignette Study 
 title-block-banner: "#3459e6"
 author:
   - name: David Simon
@@ -58,10 +58,10 @@ Unfold code to see information:
 library(here)           # find files
 library(tidyverse)      # data management
 library(psych)          # scale construction, CFA
-library(semTools)
-library(naniar)         # missings
-library(finalfit)
-library(ggcorrplot)     # correlation plot
+library(semTools)       # reliability
+library(naniar)         # missing data
+library(finalfit)       # descriptive statistics
+library(corrtable)      # correlation table
 library(lavaan)         # path analysis
 ```
 
@@ -91,7 +91,7 @@ Describe data:
 
 ```{r}
 data_cfa_1_sorted <- data_cfa_1[, sort(colnames(data_cfa_1))]
-describe(data_cfa_1_sorted)
+psych::describe(data_cfa_1_sorted)
 ```
 
 *Step 1: Fitting a Three-factor Model*
@@ -401,7 +401,7 @@ adapted from [@steinsmeier1985]
 
 - `int`: Internality
 - `sta`: Stability
-- `con`: Controllability
+- `con`: Locus
 
 *Social Support*  
 adapted from [@richter2011]
@@ -435,95 +435,122 @@ data_sam <- data %>%
 finalfit::ff_glimpse(data_sam, digits = 2)
 ```
 
-#### 3.2 Preliminaries
+#### 3.2 Correlation Table
 
 ```{r}
 data_ana <- data %>%
-  dplyr::select(int, con, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel) 
+  dplyr::select(inf_sup, emo_sup, ins_sup, int, con, sta, sef_pea, sef_rel) 
+
+corrtable::correlation_matrix(
+  data_ana,
+  type = "spearman",
+  digits = 2,
+  decimal.mark = ".",
+  use = "all",
+  show_significance = TRUE,
+  replace_diagonal = TRUE,
+  replacement = ""
+)
+
 ```
 
-##### 3.2.1 Missingness
+#### 3.3 Descriptive Statistics
+
+```{r}
+psych::describe(data_ana)
+```
+
+#### 3.4 Missingness
+
 ```{r}
 naniar::vis_miss(data_ana)
 ```
 
-##### 3.2.2 Correlation table
+#### 3.5 Multivariate  normality
+
 ```{r}
-# 
-data_cor <- data_ana %>%
-  dplyr::select(int, con, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel) %>%
-  drop_na()
+# Q-Q-Plot
+data_qq <- data_ana %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  filter(!is.na(value)) 
 
-# Plot correlation matrix
-cor_mat <- round(cor(data_cor),2)
-p_mat <- ggcorrplot::cor_pmat(data_cor)
-
-ggcorrplot(cor_mat,
-           method = "square",
-           type = "lower",       # lower triangle only
-           lab = TRUE,           # add correlation coefficients
-           lab_size = 3, 
-           colors = c("red", "white", "green4"),
-           ggtheme = ggplot2::theme_minimal())
+ggplot(data_qq, aes(sample = value)) +
+  stat_qq() +
+  stat_qq_line(color = "red") +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Q-Q-Plot per variable")
 ```
 
-##### 3.2.3 Multivariate  normality
+#### 3.6 Path Analysis
 
-##### 3.2.4 Linearity and homoscedasticity
-
-##### 3.2.4 Multicollinearity
-
-
-#### 3.3 Path Analysis
-
-Independent variables were mean centered and standardized, before the interaction terms were calculated:
+Independent variables were mean centered and standardized, before the interaction terms were calculated; dependent variables were standardized:
 
 ```{r}
 data <- data %>%
   dplyr::select(int, con, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel, vig) 
 
-# mean center and standardize independent variables
-data$int_cntrd <- scale(data$int, center = TRUE, scale = TRUE)
-data$sta_cntrd <- scale(data$sta, center = TRUE, scale = TRUE)
-data$con_cntrd <- scale(data$con, center = TRUE, scale = TRUE)
+# mean center and standardize independent variables (z-standardize)
+data$int_cntrd <- as.numeric(scale(data$int, center = TRUE, scale = TRUE))
+data$sta_cntrd <- as.numeric(scale(data$sta, center = TRUE, scale = TRUE))
+data$con_cntrd <- as.numeric(scale(data$con, center = TRUE, scale = TRUE))
 
 # Interaction terms
 data$conXint <- data$con_cntrd * data$int_cntrd 
 data$intXsta <- data$int_cntrd * data$sta_cntrd 
+
+# mean center and standardize standardize dependent variables (z-standardize)
+data$inf_sup <- as.numeric(scale(data$inf_sup))
+data$emo_sup <- as.numeric(scale(data$emo_sup))
+data$ins_sup <- as.numeric(scale(data$ins_sup))
+data$sef_pea <- as.numeric(scale(data$sef_pea))
+data$sef_rel <- as.numeric(scale(data$sef_rel))
 ```
 
-##### 3.3.1 Controlability
+##### 3.6.1 Test of Comparability Between Vignettes 
+
+```{r}
+vars <- c("int","con","sta","inf_sup","emo_sup","ins_sup","sef_pea","sef_rel")
+
+res <- lapply(vars, function(v) {
+  f <- as.formula(paste(v, "~ vig"))
+  w <- oneway.test(f, data = data)              
+  a <- aov(f, data = data)
+  eta <- effectsize::eta_squared(a, partial = FALSE, ci = 0.95)
+  data.frame(var = v, F = round(w$statistic, 2), df1 = round(w$parameter[1], 0),
+             df2 = round(w$parameter[2], 0), p = round(w$p.value, 3),
+             eta2 = round(eta$Eta2, 2))
+})
+
+do.call(rbind, res)
+
+data <- data %>%
+  mutate(vig1 = as.numeric(vig == "1"),
+         vig2 = as.numeric(vig == "2"),
+         vig3 = as.numeric(vig == "3"))
+```
+
+##### 3.6.2 Self-efficacy
 
 ```{r}
 model <- '
-  inf_sup ~ int_cntrd + con_cntrd + conXint
-  emo_sup ~ int_cntrd + con_cntrd + conXint
-  ins_sup ~ int_cntrd + con_cntrd + conXint
+  inf_sup ~ sef_pea + sef_rel + vig2 + vig3
+  emo_sup ~ sef_pea + sef_rel + vig2 + vig3
+  ins_sup ~ sef_pea + sef_rel + vig2 + vig3
   
   inf_sup ~~ emo_sup
   emo_sup ~~ ins_sup
   inf_sup ~~ ins_sup
-  
-  int_cntrd ~~ con_cntrd
-  con_cntrd ~~ conXint
-  int_cntrd ~~ conXint
 '
 
 fit_ses <- lavaan::sem(model = model, 
                        data = data, 
-                       missing = "FIML",
-                       estimator = "ML",
-                       meanstructure = TRUE,
-                       se = "bootstrap", 
-                       bootstrap = 1000)
+                       missing = "fiml",
+                       fixed.x = TRUE,
+                       estimator = "MLR")
 
-parameterEstimates(
-  fit_ses,
-  standardized = TRUE,
-  rsquare = TRUE,
-  ci = TRUE,
-  level = 0.90
-)
+summary(fit_ses, rsquare = TRUE, ci = TRUE, standardized = TRUE)
+standardizedSolution(fit_ses, ci = TRUE)
 ```
 
 Model fit:
@@ -531,38 +558,40 @@ Model fit:
 fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
-##### 3.3.2 Internality
+##### 3.6.3 Controllability (Locus)
 
 ```{r}
 model <- '
-  inf_sup ~ int_cntrd + sta_cntrd + intXsta
-  emo_sup ~ int_cntrd + sta_cntrd + intXsta
-  ins_sup ~ int_cntrd + sta_cntrd + intXsta
+  inf_sup ~ a1*int_cntrd + a2*con_cntrd + a3*conXint + vig2 + vig3
+  emo_sup ~ b1*int_cntrd + b2*con_cntrd + b3*conXint + vig2 + vig3
+  ins_sup ~ c1*int_cntrd + c2*con_cntrd + c3*conXint + vig2 + vig3
   
   inf_sup ~~ emo_sup
   emo_sup ~~ ins_sup
   inf_sup ~~ ins_sup
   
-  int_cntrd ~~ sta_cntrd
-  sta_cntrd ~~ intXsta
-  int_cntrd ~~ intXsta
+  # simple slopes, effect of con at int (-1, 0, +1 SD)
+  inf_con_l := a2 + a3*(-1)
+  inf_con_m := a2 + a3*0
+  inf_con_h := a2 + a3*(1)
+
+  emo_con_l := b2 + b3*(-1)
+  emo_con_m := b2 + b3*0
+  emo_con_h := b2 + b3*(1)
+ 
+  ins_con_l := c2 + c3*(-1)
+  ins_con_m := c2 + c3*0
+  ins_con_h := c2 + c3*(1)
 '
 
 fit_ses <- lavaan::sem(model = model, 
                        data = data, 
-                       missing = "FIML",
-                       estimator = "ML",
-                       meanstructure = TRUE,
-                       se = "bootstrap", 
-                       bootstrap = 1000)
+                       missing = "fiml",
+                       fixed.x = TRUE,
+                       estimator = "MLR",
+                       meanstructure = TRUE)
 
-parameterEstimates(
-  fit_ses,
-  standardized = TRUE,
-  rsquare = TRUE,
-  ci = TRUE,
-  level = 0.90
-)
+summary(fit_ses, rsquare = TRUE, ci = TRUE, standardized = TRUE)
 ```
 
 Model fit:
@@ -570,35 +599,40 @@ Model fit:
 fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
-##### 3.3.3 Self-Efficacy
+##### 3.6.4 Stability
+
 ```{r}
 model <- '
-  inf_sup ~ sef_rel + sef_pea
-  emo_sup ~ sef_rel + sef_pea
-  ins_sup ~ sef_rel + sef_pea
-  
+  inf_sup ~ a1*int_cntrd + a2*sta_cntrd + a3*intXsta + vig2 + vig3
+  emo_sup ~ b1*int_cntrd + b2*sta_cntrd + b3*intXsta + vig2 + vig3
+  ins_sup ~ c1*int_cntrd + c2*sta_cntrd + c3*intXsta + vig2 + vig3
+
   inf_sup ~~ emo_sup
   emo_sup ~~ ins_sup
   inf_sup ~~ ins_sup
-  
-  sef_rel ~~ sef_pea
+
+  # simple slopes, effect of sta at int (-1, 0, +1 SD)
+  inf_sta_l := a2 + a3*(-1)
+  inf_sta_m := a2 + a3*0
+  inf_sta_h := a2 + a3*(1)
+
+  emo_sta_l := b2 + b3*(-1)
+  emo_sta_m := b2 + b3*0
+  emo_sta_h := b2 + b3*(1)
+
+  ins_sta_l := c2 + c3*(-1)
+  ins_sta_m := c2 + c3*0
+  ins_sta_h := c2 + c3*(1)
 '
 
 fit_ses <- lavaan::sem(model = model, 
                        data = data, 
-                       missing = "FIML",
-                       estimator = "ML",
-                       meanstructure = TRUE,
-                       se = "bootstrap", 
-                       bootstrap = 1000)
+                       missing = "fiml",
+                       fixed.x = TRUE,
+                       estimator = "MLR",
+                       meanstructure = TRUE)
 
-parameterEstimates(
-  fit_ses,
-  standardized = TRUE,
-  rsquare = TRUE,
-  ci = TRUE,
-  level = 0.90
-)
+summary(fit_ses, rsquare = TRUE, ci = TRUE, standardized = TRUE)
 ```
 
 Model fit:
@@ -606,80 +640,14 @@ Model fit:
 fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
-##### 3.3.4 Constructivist and Transmissive Mentoring
-
-```{r}
-model <- '
-  inf_sup ~ con_men + tra_men
-  emo_sup ~ con_men + tra_men
-  ins_sup ~ con_men + tra_men
-  
-  inf_sup ~~ emo_sup
-  emo_sup ~~ ins_sup
-  inf_sup ~~ ins_sup
-  
-  sef_rel ~~ tra_men
-'
-
-fit_ses <- lavaan::sem(model = model, 
-                       data = data_t1t2, 
-                       missing = "FIML",
-                       estimator = "ML",
-                       meanstructure = TRUE,
-                       se = "bootstrap", 
-                       bootstrap = 1000)
-
-parameterEstimates(
-  fit_ses,
-  standardized = TRUE,
-  rsquare = TRUE,
-  ci = TRUE,
-  level = 0.90
-)
-```
-
-Model fit:
-```{r}
-fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
-```
-
-#### 3.3 Descriptives: Vignettes
-
-*Were the situations cause equally attributed?*
-
-```{r}
-data_vig1 <- data_t2 %>% 
-  dplyr::filter(vig == 1) 
-
-data_vig2 <- data_t2 %>% 
-  dplyr::filter(vig == 2) 
-
-data_vig3 <- data_t2 %>% 
-  dplyr::filter(vig == 3) 
-
-tab4 <- data.frame(int = mean(data_vig1$int_1, na.rm = TRUE),
-                   sta = mean(data_vig1$sta_1, na.rm = TRUE),
-                   con = mean(data_vig1$kon_1, na.rm = TRUE))
-
-tab5 <- data.frame(int = mean(data_vig2$int_1, na.rm = TRUE),
-                   sta = mean(data_vig2$sta_1, na.rm = TRUE),
-                   con = mean(data_vig2$kon_1, na.rm = TRUE))
-
-tab6 <- data.frame(int = mean(data_vig3$int_1, na.rm = TRUE),
-                   sta = mean(data_vig3$sta_1, na.rm = TRUE),
-                   con = mean(data_vig3$kon_1, na.rm = TRUE))
-
-barplot(as.matrix(tab4), main = "Vignette 1")
-barplot(as.matrix(tab5), main = "Vignette 2")
-barplot(as.matrix(tab6), main = "Vignette 3")
-```
+#### 3.7 Descriptives: Vignettes
 
 *What reasons were given for the situation?*
 
 ```{r}
 sorted_data <- data_t2 %>%
   dplyr::select(vig, ursache) %>%
-   dplyr::arrange(vig)
+  dplyr::arrange(vig)
 ```
 
 Vignette 1: "General turbulence among students"
