@@ -63,6 +63,7 @@ library(naniar)         # missing data
 library(finalfit)       # descriptive statistics
 library(corrtable)      # correlation table
 library(lavaan)         # path analysis
+library(patchwork)      # plot
 ```
 
 ## Data Analysis
@@ -170,7 +171,7 @@ We proceeded with the following model:
 - Factor 3: Instrumental support ("Provision of goods and materials") was best represented through the items `sozunt_ins1`, `sozunt_ins2` and `sozunt_ins3`. 
 
 
-#### 2.2 Confirmatory Factor Analysis (CFA):  Self-Efficacy Scale
+#### 2.2 Confirmatory Factor Analysis (CFA):  Teacher Mentoring Self-Efficacy
 Tickell and Klassen [-@tickell2024] developed a  scale for measuring teacher mentoring self-efficacy beliefs and suggest a two-factor model, with factors named as *Pedagogical Practices* and *Professional Relationships*. We tested this factor structure in our German translation of the questionnaire:
 
 Data for CFA:
@@ -375,7 +376,7 @@ data <- data %>%
                                                            sozunt_ins3)),
                                    na.rm = TRUE))
 
-## Self-efficacy
+## Teacher Mentoring Self-Efficacy
 
 # Pedagogical Practices   
 data <- data %>% 
@@ -386,7 +387,7 @@ data <- data %>%
                                                            seffsab_4)),
                                    na.rm = TRUE),
 
-# Relationships
+# Professional Relationships
                 sef_rel = rowMeans(subset(data, select = c(seffsab_29, seffsab_44, 
                                                            seffsab_43, seffsab_9)),
                                    na.rm = TRUE))
@@ -410,11 +411,11 @@ adapted from [@richter2011]
 - `emo_sup`: Emotional support
 - `ins_sup`: Instrumental support
 
-*Self-efficacy*  
+*Self-Efficacy*  
 adapted from [@tickell2024]
 
 - `sef_pea`: Pedagogical Practices
-- `sef_rel`: Relationships
+- `sef_rel`: Professional Relationships
 
 
 ### 3 Results
@@ -466,7 +467,7 @@ psych::describe(data_ana)
 naniar::vis_miss(data_ana)
 ```
 
-#### 3.5 Multivariate  normality
+#### 3.5 Multivariate  Normality
 
 ```{r}
 # Q-Q-Plot
@@ -497,7 +498,7 @@ data$con_cntrd <- as.numeric(scale(data$con, center = TRUE, scale = TRUE))
 
 # Interaction terms
 data$conXint <- data$con_cntrd * data$int_cntrd 
-data$intXsta <- data$int_cntrd * data$sta_cntrd 
+data$staXint <- data$sta_cntrd * data$int_cntrd
 
 # mean center and standardize standardize dependent variables (z-standardize)
 data$inf_sup <- as.numeric(scale(data$inf_sup))
@@ -530,7 +531,7 @@ data <- data %>%
          vig3 = as.numeric(vig == "3"))
 ```
 
-##### 3.6.2 Self-efficacy
+##### 3.6.2 Self-Efficacy
 
 ```{r}
 model <- '
@@ -543,22 +544,91 @@ model <- '
   inf_sup ~~ ins_sup
 '
 
-fit_ses <- lavaan::sem(model = model, 
+fit_sef <- lavaan::sem(model = model, 
                        data = data, 
                        missing = "fiml",
                        fixed.x = TRUE,
                        estimator = "MLR")
 
-summary(fit_ses, rsquare = TRUE, ci = TRUE, standardized = TRUE)
-standardizedSolution(fit_ses, ci = TRUE)
+summary(fit_sef, rsquare = TRUE, ci = TRUE)
 ```
 
 Model fit:
 ```{r}
-fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+fitMeasures(fit_sef, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
-##### 3.6.3 Controllability (Locus)
+##### 3.6.3 Forest-Plot: Self-Efficacy
+
+```{r}
+# Get paths
+
+get_paths <- function(fit, model_label) {
+  parameterEstimates(fit, ci = TRUE, level = 0.95) %>%
+    filter(op == "~", !rhs %in% c("vig2", "vig3")) %>%
+    transmute(outcome = lhs,
+              predictor = rhs,
+              est, ci.lower, ci.upper)}
+
+paths <- (get_paths(fit_sef))
+
+# Labels
+
+paths <- paths %>%
+  mutate(
+    predictor_label = recode(predictor,
+      sef_pea   = "Pedagogical Practices",
+      sef_rel   = "Professional Relationships"),
+    outcome_label = recode(outcome,
+      inf_sup = "Informational support",
+      emo_sup = "Emotional support",
+      ins_sup = "Instrumental support"),
+    outcome_label = factor(outcome_label,
+                           levels = c("Informational support",
+                                      "Emotional support",
+                                      "Instrumental support")))
+
+# Order predictors top to bottom
+pred_levels <- c("Pedagogical Practices", "Professional Relationships")
+
+paths$predictor_label <- factor(paths$predictor_label, levels = rev(pred_levels))
+
+# Plot
+dodge <- position_dodge(width = 0.7, reverse = TRUE)
+
+plot_forest <- ggplot(paths, aes(x = est, y = predictor_label,
+                                 color = outcome_label,
+                                 shape = outcome_label)) +
+  geom_vline(xintercept = 0, linetype = "solid",
+             color = "gray80", linewidth = 0.4) +
+  geom_errorbar(aes(xmin = ci.lower, xmax = ci.upper),
+                orientation = "y", width = 0.1, linewidth = 0.6,
+                position = dodge) +
+  geom_point(size = 4, position = dodge) +
+  scale_color_brewer(palette = "Set2", name = NULL) +
+  scale_shape_manual(values = c(16, 15, 17), name = NULL) +
+  labs(x = "\nStandardized regression coefficients", y = NULL) +
+  theme_minimal(base_size = 11, base_family = "Arial") +
+  
+  theme(
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA),
+    legend.position  = "bottom",
+    legend.text      = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(colour = "black", linewidth = 0.7, linetype = "solid"),
+    axis.text        = element_text(colour = "black", size = 11),
+    axis.ticks.x     = element_line(colour = "black")
+  )
+
+ggsave("forest_plot_seff.png", plot_forest,
+       width = 8, height = 5, dpi = 600, bg = "white")
+
+plot(plot_forest)
+```
+
+##### 3.6.4 Controllability (Locus)
 
 ```{r}
 model <- '
@@ -584,28 +654,97 @@ model <- '
   ins_con_h := c2 + c3*(1)
 '
 
-fit_ses <- lavaan::sem(model = model, 
+fit_con <- lavaan::sem(model = model, 
                        data = data, 
                        missing = "fiml",
                        fixed.x = TRUE,
                        estimator = "MLR",
                        meanstructure = TRUE)
 
-summary(fit_ses, rsquare = TRUE, ci = TRUE, standardized = TRUE)
+summary(fit_con, rsquare = TRUE, ci = TRUE)
 ```
 
 Model fit:
 ```{r}
-fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+fitMeasures(fit_con, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
 ```
 
-##### 3.6.4 Stability
+##### 3.6.5 Forest-Plot: Controllability
+
+```{r}
+# Get paths
+
+get_paths <- function(fit, model_label) {
+  parameterEstimates(fit, ci = TRUE, level = 0.95) %>%
+    filter(op == "~", !rhs %in% c("vig2", "vig3")) %>%
+    transmute(outcome = lhs,
+              predictor = rhs,
+              est, ci.lower, ci.upper)}
+
+paths <- (get_paths(fit_con))
+
+# Labels
+
+paths <- paths %>%
+  mutate(
+    predictor_label = recode(predictor,
+      con_cntrd   = "Controllability",
+      int_cntrd   = "Locus of control",
+      conXint   = "Controllability ×\nLocus of control"),
+    outcome_label = recode(outcome,
+      inf_sup = "Informational support",
+      emo_sup = "Emotional support",
+      ins_sup = "Instrumental support"),
+    outcome_label = factor(outcome_label,
+                           levels = c("Informational support",
+                                      "Emotional support",
+                                      "Instrumental support")))
+
+# Order predictors top to bottom
+pred_levels <- c("Controllability", "Locus of control", "Controllability ×\nLocus of control")
+
+paths$predictor_label <- factor(paths$predictor_label, levels = rev(pred_levels))
+
+# Plot
+dodge <- position_dodge(width = 0.7, reverse = TRUE)
+
+plot_forest_con <- ggplot(paths, aes(x = est, y = predictor_label,
+                                     color = outcome_label,
+                                     shape = outcome_label)) +
+  geom_vline(xintercept = 0, linetype = "solid",
+             color = "gray80", linewidth = 0.4) +
+  geom_errorbar(aes(xmin = ci.lower, xmax = ci.upper),
+                orientation = "y", width = 0.1, linewidth = 0.6,
+                position = dodge) +
+  geom_point(size = 4, position = dodge) +
+  scale_color_brewer(palette = "Set2", name = NULL) +
+  scale_shape_manual(values = c(16, 15, 17), name = NULL) +
+  labs(x = "Standardized regression coefficients", y = NULL) +
+  theme_minimal(base_size = 11, base_family = "Arial") +
+  
+  theme(
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA),
+    legend.position  = "top",
+    legend.text      = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(colour = "black", linewidth = 0.7, linetype = "solid"),
+    axis.text        = element_text(colour = "black", size = 11),
+    axis.ticks.x     = element_line(colour = "black")
+  )
+
+ggsave("forest_plot_con.png", plot_forest_con,
+       width = 8, height = 5, dpi = 600, bg = "white")
+```
+
+##### 3.6.6 Stability
 
 ```{r}
 model <- '
-  inf_sup ~ a1*int_cntrd + a2*sta_cntrd + a3*intXsta + vig2 + vig3
-  emo_sup ~ b1*int_cntrd + b2*sta_cntrd + b3*intXsta + vig2 + vig3
-  ins_sup ~ c1*int_cntrd + c2*sta_cntrd + c3*intXsta + vig2 + vig3
+  inf_sup ~ a1*int_cntrd + a2*sta_cntrd + a3*staXint + vig2 + vig3
+  emo_sup ~ b1*int_cntrd + b2*sta_cntrd + b3*staXint + vig2 + vig3
+  ins_sup ~ c1*int_cntrd + c2*sta_cntrd + c3*staXint + vig2 + vig3
 
   inf_sup ~~ emo_sup
   emo_sup ~~ ins_sup
@@ -625,19 +764,107 @@ model <- '
   ins_sta_h := c2 + c3*(1)
 '
 
-fit_ses <- lavaan::sem(model = model, 
+fit_sta <- lavaan::sem(model = model, 
                        data = data, 
                        missing = "fiml",
                        fixed.x = TRUE,
                        estimator = "MLR",
                        meanstructure = TRUE)
 
-summary(fit_ses, rsquare = TRUE, ci = TRUE, standardized = TRUE)
+summary(fit_sta, rsquare = TRUE, ci = TRUE)
 ```
 
 Model fit:
 ```{r}
-fitMeasures(fit_ses, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+fitMeasures(fit_sta, c("chisq", "df", "pvalue", "cfi", "srmr", "rmsea"))
+```
+
+##### 3.6.7 Forest-Plot: Stability
+
+```{r}
+# Get paths
+
+get_paths <- function(fit, model_label) {
+  parameterEstimates(fit, ci = TRUE, level = 0.95) %>%
+    filter(op == "~", !rhs %in% c("vig2", "vig3")) %>%
+    transmute(outcome = lhs,
+              predictor = rhs,
+              est, ci.lower, ci.upper)}
+
+paths <- (get_paths(fit_sta))
+
+# Labels
+
+paths <- paths %>%
+  mutate(
+    predictor_label = recode(predictor,
+      sta_cntrd   = "Stability",
+      int_cntrd   = "Locus of control",
+      staXint   = "Stability ×\nLocus of control"),
+    outcome_label = recode(outcome,
+      inf_sup = "Informational support",
+      emo_sup = "Emotional support",
+      ins_sup = "Instrumental support"),
+    outcome_label = factor(outcome_label,
+                           levels = c("Informational support",
+                                      "Emotional support",
+                                      "Instrumental support")))
+
+# Order predictors top to bottom
+pred_levels <- c("Stability", "Locus of control", "Stability ×\nLocus of control")
+
+paths$predictor_label <- factor(paths$predictor_label, levels = rev(pred_levels))
+
+# Plot
+dodge <- position_dodge(width = 0.7, reverse = TRUE)
+
+plot_forest_sta <- ggplot(paths, aes(x = est, y = predictor_label,
+                                     color = outcome_label,
+                                     shape = outcome_label)) +
+  geom_vline(xintercept = 0, linetype = "solid",
+             color = "gray80", linewidth = 0.4) +
+  geom_errorbar(aes(xmin = ci.lower, xmax = ci.upper),
+                orientation = "y", width = 0.1, linewidth = 0.6,
+                position = dodge) +
+  geom_point(size = 4, position = dodge) +
+  scale_color_brewer(palette = "Set2", name = NULL) +
+  scale_shape_manual(values = c(16, 15, 17), name = NULL) +
+  labs(x = "Standardized regression coefficients", y = NULL) +
+  theme_minimal(base_size = 11, base_family = "Arial") +
+  
+  theme(
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA),
+    legend.position  = "top",
+    legend.text      = element_text(size = 10),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_line(colour = "black", linewidth = 0.7, linetype = "solid"),
+    axis.text        = element_text(colour = "black", size = 11),
+    axis.ticks.x     = element_line(colour = "black")
+  )
+
+ggsave("forest_plot_sta.png", plot_forest_sta,
+       width = 8, height = 5, dpi = 600, bg = "white")
+```
+
+##### 3.6.8 Forest-Plot: Controllability and Stability
+
+```{r}
+plot_combined <- (plot_forest_con | plot_forest_sta) +
+  plot_layout(guides = "collect") +
+  plot_annotation(
+    tag_levels = "A",
+    theme = theme(plot.caption = element_text(hjust = 0.5, size = 11,
+                                              family = "Arial"))
+  ) &
+  theme(legend.position = "bottom") &
+  coord_cartesian(xlim = c(-0.5, 0.5))
+
+ggsave("forest_plot_con_sta.png", plot_combined,
+       width = 11, height = 5, dpi = 600, bg = "white")
+
+plot(plot_combined)
 ```
 
 #### 3.7 Descriptives: Vignettes
