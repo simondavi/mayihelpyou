@@ -608,6 +608,7 @@ plot_forest <- ggplot(paths, aes(x = est, y = predictor_label,
   scale_color_brewer(palette = "Set2", name = NULL) +
   scale_shape_manual(values = c(16, 15, 17), name = NULL) +
   labs(x = "\nStandardized regression coefficients", y = NULL) +
+  coord_cartesian(xlim = c(-0.5, 0.5)) +
   theme_minimal(base_size = 11, base_family = "Arial") +
   
   theme(
