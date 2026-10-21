@@ -485,11 +485,11 @@ ggplot(data_qq, aes(sample = value)) +
 
 #### 3.6 Path Analysis
 
-Independent variables were mean centered and standardized, before the interaction terms were calculated; dependent variables were standardized:
+Independent variables were mean centered and standardized, before the interaction terms were calculated; dependent variables were mean centered and standardized:
 
 ```{r}
 data <- data %>%
-  dplyr::select(int, con, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel, vig) 
+  dplyr::select(con, int, sta, inf_sup, emo_sup, ins_sup, sef_pea, sef_rel, vig) 
 
 # mean center and standardize independent variables (z-standardize)
 data$int_cntrd <- as.numeric(scale(data$int, center = TRUE, scale = TRUE))
@@ -501,17 +501,17 @@ data$conXint <- data$con_cntrd * data$int_cntrd
 data$staXint <- data$sta_cntrd * data$int_cntrd
 
 # mean center and standardize standardize dependent variables (z-standardize)
-data$inf_sup <- as.numeric(scale(data$inf_sup))
-data$emo_sup <- as.numeric(scale(data$emo_sup))
-data$ins_sup <- as.numeric(scale(data$ins_sup))
-data$sef_pea <- as.numeric(scale(data$sef_pea))
-data$sef_rel <- as.numeric(scale(data$sef_rel))
+data$inf_sup <- as.numeric(scale(data$inf_sup, center = TRUE, scale = TRUE))
+data$emo_sup <- as.numeric(scale(data$emo_sup, center = TRUE, scale = TRUE))
+data$ins_sup <- as.numeric(scale(data$ins_sup, center = TRUE, scale = TRUE))
+data$sef_pea <- as.numeric(scale(data$sef_pea, center = TRUE, scale = TRUE))
+data$sef_rel <- as.numeric(scale(data$sef_rel, center = TRUE, scale = TRUE))
 ```
 
 ##### 3.6.1 Test of Comparability Between Vignettes 
 
 ```{r}
-vars <- c("int","con","sta","inf_sup","emo_sup","ins_sup","sef_pea","sef_rel")
+vars <- c("con", "int", "sta", "inf_sup", "emo_sup", "ins_sup", "sef_pea", "sef_rel")
 
 res <- lapply(vars, function(v) {
   f <- as.formula(paste(v, "~ vig"))
