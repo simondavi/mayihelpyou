@@ -349,7 +349,7 @@ data$vig <- as.factor(data$vig)
 ## Attribution 
 
 data <- data %>%
-  dplyr::mutate(int = int_1,  # Internality
+  dplyr::mutate(int = int_1,  # Locus of control
                 sta = sta_1,  # Stability 
                 con = kon_1)  # Controllability
 
@@ -400,9 +400,9 @@ data <- data %>%
 *Attributions*   
 adapted from [@steinsmeier1985]
 
-- `int`: Internality
+- `int`: Locus of control
+- `con`: Controllability
 - `sta`: Stability
-- `con`: Locus
 
 *Social Support*  
 adapted from [@richter2011]
@@ -624,7 +624,7 @@ plot_forest <- ggplot(paths, aes(x = est, y = predictor_label,
   )
 
 ggsave("forest_plot_seff.png", plot_forest,
-       width = 8, height = 5, dpi = 600, bg = "white")
+       width = 7, height = 5, dpi = 600, bg = "white")
 
 plot(plot_forest)
 ```
@@ -653,6 +653,8 @@ model <- '
   ins_con_l := c2 + c3*(-1)
   ins_con_m := c2 + c3*0
   ins_con_h := c2 + c3*(1)
+  
+  conXint_avg := (a3 + b3 + c3) / 3
 '
 
 fit_con <- lavaan::sem(model = model, 
@@ -736,7 +738,7 @@ plot_forest_con <- ggplot(paths, aes(x = est, y = predictor_label,
   )
 
 ggsave("forest_plot_con.png", plot_forest_con,
-       width = 8, height = 5, dpi = 600, bg = "white")
+       width = 7, height = 5, dpi = 600, bg = "white")
 ```
 
 ##### 3.6.6 Stability
@@ -846,7 +848,7 @@ plot_forest_sta <- ggplot(paths, aes(x = est, y = predictor_label,
   )
 
 ggsave("forest_plot_sta.png", plot_forest_sta,
-       width = 8, height = 5, dpi = 600, bg = "white")
+       width = 7, height = 5, dpi = 600, bg = "white")
 ```
 
 ##### 3.6.8 Forest-Plot: Controllability and Stability
@@ -863,7 +865,7 @@ plot_combined <- (plot_forest_con | plot_forest_sta) +
   coord_cartesian(xlim = c(-0.5, 0.5))
 
 ggsave("forest_plot_con_sta.png", plot_combined,
-       width = 11, height = 5, dpi = 600, bg = "white")
+       width = 14, height = 5, dpi = 600, bg = "white")
 
 plot(plot_combined)
 ```
