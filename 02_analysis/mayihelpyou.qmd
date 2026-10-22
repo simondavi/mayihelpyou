@@ -1,6 +1,6 @@
 ---
-title: Teacher Educators’ Self-Efficacy and Attributional Beliefs as Predictors Social Support for Mentees
-subtitle: A Vignette Study 
+title: Teacher Educators’ Self-Efficacy and Attributional Beliefs as Predictors of Social Support for Mentees
+subtitle: A Vignette-Based Study  
 title-block-banner: "#3459e6"
 author:
   - name: David Simon
@@ -642,18 +642,25 @@ model <- '
   inf_sup ~~ ins_sup
   
   # simple slopes, effect of con at int (-1, 0, +1 SD)
-  inf_con_l := a2 + a3*(-1)
-  inf_con_m := a2 + a3*0
-  inf_con_h := a2 + a3*(1)
+  inf_con_int_l := a2 + a3*(-1)
+  inf_con_int_m := a2 + a3*0
+  inf_con_int_h := a2 + a3*(1)
 
-  emo_con_l := b2 + b3*(-1)
-  emo_con_m := b2 + b3*0
-  emo_con_h := b2 + b3*(1)
+  emo_con_int_l := b2 + b3*(-1)
+  emo_con_int_m := b2 + b3*0
+  emo_con_int_h := b2 + b3*(1)
  
-  ins_con_l := c2 + c3*(-1)
-  ins_con_m := c2 + c3*0
-  ins_con_h := c2 + c3*(1)
+  ins_con_int_l := c2 + c3*(-1)
+  ins_con_int_m := c2 + c3*0
+  ins_con_int_h := c2 + c3*(1)
   
+  # effect of con averaged averaged across all support dimensions
+  con_avg := (a2 + b2 + c2) / 3
+  
+  # effect of int averaged averaged across all support dimensions
+  int_avg := (a1 + b1 + c1) / 3
+  
+  # interaction effect averaged across all support dimensions
   conXint_avg := (a3 + b3 + c3) / 3
 '
 
@@ -754,17 +761,26 @@ model <- '
   inf_sup ~~ ins_sup
 
   # simple slopes, effect of sta at int (-1, 0, +1 SD)
-  inf_sta_l := a2 + a3*(-1)
-  inf_sta_m := a2 + a3*0
-  inf_sta_h := a2 + a3*(1)
+  inf_sta_int_l := a2 + a3*(-1)
+  inf_sta_int_m := a2 + a3*0
+  inf_sta_int_h := a2 + a3*(1)
 
-  emo_sta_l := b2 + b3*(-1)
-  emo_sta_m := b2 + b3*0
-  emo_sta_h := b2 + b3*(1)
+  emo_sta_int_l := b2 + b3*(-1)
+  emo_sta_int_m := b2 + b3*0
+  emo_sta_int_h := b2 + b3*(1)
 
-  ins_sta_l := c2 + c3*(-1)
-  ins_sta_m := c2 + c3*0
-  ins_sta_h := c2 + c3*(1)
+  ins_sta_int_l := c2 + c3*(-1)
+  ins_sta_int_m := c2 + c3*0
+  ins_sta_int_h := c2 + c3*(1)
+  
+  # effect of sta averaged averaged across all support dimensions
+  sta_avg := (a2 + b2 + c2) / 3
+  
+  # effect of int averaged averaged across all support dimensions
+  int_avg := (a1 + b1 + c1) / 3
+  
+  # interaction effect averaged across all support dimensions
+  staXint_avg := (a3 + b3 + c3) / 3
 '
 
 fit_sta <- lavaan::sem(model = model, 
